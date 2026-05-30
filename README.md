@@ -1,7 +1,7 @@
 # canvas-ade-mcp
 
 The **MCP (Model Context Protocol) layer** for Canvas ADE — the tool/resource/prompt contract that
-lets AI coding agents running *inside* Canvas ADE boards orchestrate the canvas itself. This is what
+lets AI coding agents running _inside_ Canvas ADE boards orchestrate the canvas itself. This is what
 turns the canvas from a human-driven cockpit into an **AI-orchestratable swarm environment** with a
 **command board** (an orchestrator agent) driving a fleet of worker agents.
 
@@ -12,10 +12,10 @@ turns the canvas from a human-driven cockpit into an **AI-orchestratable swarm e
 ## What this is (and is NOT)
 
 - **IS:** a **standalone package with its own git repo**, living at `Z:\canvas-ade-mcp` — a
-  **sibling of the Canvas ADE repo, NOT nested inside it**. It owns the MCP *contract* — tool +
+  **sibling of the Canvas ADE repo, NOT nested inside it**. It owns the MCP _contract_ — tool +
   resource + prompt schemas, the streamable-HTTP transport, auth (per-board bearer tokens), and the
   capability tier-factory (orchestrator vs worker).
-- **IS NOT:** a standalone *app*. The MCP server has nothing to orchestrate on its own — every tool
+- **IS NOT:** a standalone _app_. The MCP server has nothing to orchestrate on its own — every tool
   needs live access to PTYs, git worktrees, `WebContentsView`s, and the canvas store, all of which
   live in **Canvas ADE's Electron MAIN process**. Canvas ADE **consumes this package as a dependency**
   (a local linked / path dependency during dev; published + pinned later) and MAIN binds the contract
@@ -81,22 +81,22 @@ These are validated against real prior art (Claude Code Agent Teams, Cursor 3, W
 multi-agent research system, the MCP spec). Full reasoning in the sibling Canvas ADE repo's
 `docs/feature-proposals.md` research + the two research workflows that produced this.
 
-| Decision | Why |
-|---|---|
-| **Transport = streamable-HTTP on a loopback `localServer` in MAIN** | stdio is process-per-client; we need ONE shared bus for many board-agents → one MAIN. Spec defines streamable-HTTP exactly for this. |
-| **Control plane only — PTY data stays on MessagePort** | MessagePort isn't reachable on `127.0.0.1`; avoids head-of-line blocking of high-volume terminal bytes on shared SSE. |
-| **Capability tiers enforced SERVER-SIDE by token, never by annotation/prompt** | Tool annotations "don't enforce anything." Build a fresh `McpServer` per session from a **factory that registers only the allowed tier's tools** (orchestrator vs worker), decided from the bearer token at `initialize`. |
-| **Command board = orchestrator (elevated tools); other boards = workers (read-only/scoped)** | Canonical lead/subagent pattern. Workers cannot dispatch, spawn, or do git writes. |
-| **Read-only context = resources; mutating actions = tools** | Spec-correct. `boards/status/attention/diff/output/console` are resources; `spawn/send_prompt/commit/merge` are tools with accurate destructive/openWorld annotations. |
-| **Risky tools gated: human-confirm + nonce + audit_log** | `send_prompt`/`answer_permission`/git-writes can write into another agent's shell or touch git. Human-in-the-loop is a MUST, not a SHOULD. |
-| **No OAuth discovery endpoints** | We're a trusted local server with static per-board tokens; advertising `/.well-known/oauth-*` makes Claude Code falsely flag "needs authentication." |
+| Decision                                                                                     | Why                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transport = streamable-HTTP on a loopback `localServer` in MAIN**                          | stdio is process-per-client; we need ONE shared bus for many board-agents → one MAIN. Spec defines streamable-HTTP exactly for this.                                                                                      |
+| **Control plane only — PTY data stays on MessagePort**                                       | MessagePort isn't reachable on `127.0.0.1`; avoids head-of-line blocking of high-volume terminal bytes on shared SSE.                                                                                                     |
+| **Capability tiers enforced SERVER-SIDE by token, never by annotation/prompt**               | Tool annotations "don't enforce anything." Build a fresh `McpServer` per session from a **factory that registers only the allowed tier's tools** (orchestrator vs worker), decided from the bearer token at `initialize`. |
+| **Command board = orchestrator (elevated tools); other boards = workers (read-only/scoped)** | Canonical lead/subagent pattern. Workers cannot dispatch, spawn, or do git writes.                                                                                                                                        |
+| **Read-only context = resources; mutating actions = tools**                                  | Spec-correct. `boards/status/attention/diff/output/console` are resources; `spawn/send_prompt/commit/merge` are tools with accurate destructive/openWorld annotations.                                                    |
+| **Risky tools gated: human-confirm + nonce + audit_log**                                     | `send_prompt`/`answer_permission`/git-writes can write into another agent's shell or touch git. Human-in-the-loop is a MUST, not a SHOULD.                                                                                |
+| **No OAuth discovery endpoints**                                                             | We're a trusted local server with static per-board tokens; advertising `/.well-known/oauth-*` makes Claude Code falsely flag "needs authentication."                                                                      |
 
 ### Security model (inherited + extended)
 
 The orchestrator board **is the lethal trifecta** at the system level: it reads untrusted worker
 output + holds dispatch power + has external comms (commit/PR/navigate). Therefore:
 
-- **Treat all worker-originated resources as TAINTED.** Never let worker output *auto-trigger*
+- **Treat all worker-originated resources as TAINTED.** Never let worker output _auto-trigger_
   `send_prompt`/`broadcast`/`commit`/`open_pr` — always human-confirm.
 - **`answer_permission` = unconditional human-confirm, no auto-answer.** (Approving a prompt inside
   another agent's shell is irreversible.)
@@ -117,12 +117,12 @@ output + holds dispatch power + has external comms (commit/PR/navigate). Therefo
 The MCP build can **start now** for the transport/auth/observation layers, but the dispatch + git
 layers bind to features still on the Canvas ADE roadmap:
 
-| MCP phase | Needs from Canvas ADE |
-|---|---|
-| 0–3 (transport, auth, observation, lifecycle) | nothing hard — board state + spawn exist today |
-| 4 (dispatch) | the `pty.write` channel (exists); persistence for audit (Phase 3) |
-| 6 (git tools) | **git-worktrees-per-board + per-board ports (Canvas ADE Phase 3)** |
-| 8 (best-of-N + merge queue) | worktrees + Duplicate/fan-out (Canvas ADE Phase 3) |
+| MCP phase                                     | Needs from Canvas ADE                                              |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| 0–3 (transport, auth, observation, lifecycle) | nothing hard — board state + spawn exist today                     |
+| 4 (dispatch)                                  | the `pty.write` channel (exists); persistence for audit (Phase 3)  |
+| 6 (git tools)                                 | **git-worktrees-per-board + per-board ports (Canvas ADE Phase 3)** |
+| 8 (best-of-N + merge queue)                   | worktrees + Duplicate/fan-out (Canvas ADE Phase 3)                 |
 
 See [`docs/roadmap.md`](docs/roadmap.md) for the full phase-by-phase plan.
 

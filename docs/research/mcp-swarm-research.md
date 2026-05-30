@@ -24,7 +24,8 @@ CLIs already speak. Two caveats:
    them and build fallbacks before depending on them.
 
 Closest reference architecture = **Claude Code Agent Teams** (fixed lead + shared task list + mailbox
-+ file-locked claim + plan-approval + blocking hooks). Study it directly.
+
+- file-locked claim + plan-approval + blocking hooks). Study it directly.
 
 ---
 
@@ -32,13 +33,13 @@ Closest reference architecture = **Claude Code Agent Teams** (fixed lead + share
 
 - **Orchestrator/worker two-tier split is canonical.** Matches Anthropic's lead/subagent model +
   Claude Code Agent Teams. Enforcement is at the harness, not the prompt ("an Explore agent cannot
-  edit files even if the prompt suggests it"). *Evidence: Anthropic "How we built our multi-agent
-  research system"; Claude Code sub-agents docs.*
+  edit files even if the prompt suggests it"). _Evidence: Anthropic "How we built our multi-agent
+  research system"; Claude Code sub-agents docs._
 - **Transport = streamable-HTTP on loopback localServer in MAIN.** stdio is process-per-client and
   can't be a shared bus; the spec defines streamable-HTTP for "a server handling multiple client
   connections" — exactly many-board-agents → one MAIN. One `/mcp` endpoint (POST/GET/DELETE) via
-  `StreamableHTTPServerTransport`. *Evidence: MCP spec 2025-03-26 Transports; TS SDK
-  simpleStreamableHttp example.*
+  `StreamableHTTPServerTransport`. _Evidence: MCP spec 2025-03-26 Transports; TS SDK
+  simpleStreamableHttp example._
 - **MCP control-plane only; PTY data stays on MessagePort.** Security (MessagePort unreachable on
   127.0.0.1) + avoids head-of-line blocking of terminal bytes on shared SSE.
 - **Human-confirm + audit on risky tools** is spec-backed ("there SHOULD always be a human in the
@@ -47,8 +48,8 @@ Closest reference architecture = **Claude Code Agent Teams** (fixed lead + share
   Squad/Vibe Kanban/Crystal). git surface (worktree/commit/merge/diff/discard) validated by
   `cyanheads/git-mcp-server`; "never silent --force" aligns with its confirmation-on-destructive model.
 - **The 5 canonical control primitives** (dispatch · fan-out · handoff · barrier · best-of-N judge)
-  all have a tool in our surface. Coverage complete. *Evidence: Swarm routines/LangGraph handoff;
-  parallel subagents/Send API; LangGraph join nodes; Chairman pattern.*
+  all have a tool in our surface. Coverage complete. _Evidence: Swarm routines/LangGraph handoff;
+  parallel subagents/Send API; LangGraph join nodes; Chairman pattern._
 - **Resource-vs-tool split mostly right** — boards/status/attention/diff/checklist/console/network
   correctly modeled as read-only resources (application-driven, side-effect-free per spec).
 - **budget_guard + concurrency caps** validated by the runaway pattern ("200+ agent threads
@@ -63,69 +64,74 @@ Closest reference architecture = **Claude Code Agent Teams** (fixed lead + share
 Concrete additions real systems expose. Tier = orchestrator / worker / either.
 
 ### Coordination (biggest gap vs prior art)
+
 - **`canvas://tasks`** + `create_task` / `claim_task` / `update_task_status` / `add_dependency`
   (either; resource+tools) — shared task graph with **file-locked self-claiming + auto-unblock of
   dependents**. Promote the Planning checklist into the canonical work-coordination surface.
-  *Evidence: Claude Code Agent Teams shared task list + file-locking; rinadelph/Agent-MCP.*
+  _Evidence: Claude Code Agent Teams shared task list + file-locking; rinadelph/Agent-MCP._
 - **`send_message(boardId)`** (worker; tool) — worker↔worker mailbox, distinct from orchestrator→worker
-  dispatch; breaks the strict star topology. *Evidence: Agent Teams Mailbox; Agent-MCP
-  send_agent_message/broadcast_message.*
+  dispatch; breaks the strict star topology. _Evidence: Agent Teams Mailbox; Agent-MCP
+  send_agent_message/broadcast_message._
 - **`write_result`** / **`canvas://board/{id}/result`** (worker; resource) — worker writes a
   structured summary + **path reference** instead of raw scrollback; orchestrator aggregates
-  references, not 200k-token PTY logs. *Evidence: Anthropic's #1 scaling fix — "lightweight
-  references back to the coordinator."*
+  references, not 200k-token PTY logs. _Evidence: Anthropic's #1 scaling fix — "lightweight
+  references back to the coordinator."_
 
 ### Dispatch (split our conflated send_prompt)
+
 - **`handoff_prompt`** (orchestrator; tool) — **blocking** delegation: send, block until done, return
-  result. *Evidence: AWS CAO Handoff; LangGraph handoff w/ payload.*
+  result. _Evidence: AWS CAO Handoff; LangGraph handoff w/ payload._
 - **`assign_prompt`** (orchestrator; tool) — fire-and-forget; worker reports via callback/artifact,
-  no busy-polling. *Evidence: AWS CAO Assign.*
+  no busy-polling. _Evidence: AWS CAO Assign._
 
 ### Integration (the real bottleneck)
+
 - **`merge_queue`** (orchestrator; tool) — serialized rebase-and-test land behind a pre-merge gate.
-  *Evidence: ctx.rs "Why Coding Agents Need a Merge Queue"; Augment Janitor.*
+  _Evidence: ctx.rs "Why Coding Agents Need a Merge Queue"; Augment Janitor._
 - **`compare_diffs(ids[])`** / **`canvas://diffs`** (orchestrator) — side-by-side N-worktree diff;
-  the most-built primitive + the command board's primary judge input. *Evidence: Warp Code Review.*
+  the most-built primitive + the command board's primary judge input. _Evidence: Warp Code Review._
 - **`register_gate(taskId, cmd)`** (orchestrator; tool) — deterministic non-LLM gate
   (lint/typecheck/test) blocking a task transition on non-zero exit; stronger than LLM-only judging.
-  *Evidence: Agent Teams blocking hooks (exit-code-2 blocks).*
+  _Evidence: Agent Teams blocking hooks (exit-code-2 blocks)._
 - **`judge_outputs(ids[], rubric)`** (orchestrator; tool) — best-of-N over WORKER RESULTS (not just
-  diffs); rubric'd to guard against majority-voting bias. *Evidence: Anthropic CitationAgent +
-  LLM-as-judge; arxiv 2504.17087 voting-bias warning.*
+  diffs); rubric'd to guard against majority-voting bias. _Evidence: Anthropic CitationAgent +
+  LLM-as-judge; arxiv 2504.17087 voting-bias warning._
 - **`promote_winner`** / **`select_and_merge`** (orchestrator; tool) — explicit winner-selection.
-  *Evidence: Cursor 3 /best-of-n.*
+  _Evidence: Cursor 3 /best-of-n._
 - **`promote_to_workspace(boardId)`** (orchestrator; tool) — pull a worker's worktree into the user's
-  editable working tree for pairing/testing. *Evidence: Sculptor Pairing Mode.*
+  editable working tree for pairing/testing. _Evidence: Sculptor Pairing Mode._
 
 ### Observation + control quality
+
 - **`canvas://board-states`** (orchestrator; resource) — boards bucketed by orchestration state
   (idle/running/awaiting-review/blocked/failed) so the orchestrator reasons over a Kanban aggregate
-  without polling each board. *Evidence: Vibe Kanban / Conductor / Composio.*
+  without polling each board. _Evidence: Vibe Kanban / Conductor / Composio._
 - **`resources/subscribe` on `canvas://attention`** (orchestrator; resource) — event-driven; replaces
   polling `wait_for_idle`/`wait_for_all` with `notifications/resources/updated` over the GET-SSE
-  stream; distinguishes idle-done vs blocked-on-permission vs error/crashed. *Evidence: MCP Resources
-  spec 2025-06-18 subscribe/listChanged; Warp blocked/completed notifications.*
+  stream; distinguishes idle-done vs blocked-on-permission vs error/crashed. _Evidence: MCP Resources
+  spec 2025-06-18 subscribe/listChanged; Warp blocked/completed notifications._
 - **`effort: low|med|high`** param on spawn/dispatch (orchestrator; tool) — per-dispatch turn ceiling;
-  right-size each worker at dispatch (prevents "50 subagents for a simple query"). *Evidence:
-  Anthropic effort-scaling; CrewAI hierarchical per-delegation cost.*
+  right-size each worker at dispatch (prevents "50 subagents for a simple query"). _Evidence:
+  Anthropic effort-scaling; CrewAI hierarchical per-delegation cost._
 - **`spawn_fanout(spec, N, mode: 'best-of-n' | 'split')`** (orchestrator; tool) — disambiguate
   same-prompt-N-ways vs different-task-per-agent; **split mode REQUIRES disjoint file/worktree
-  ownership.** *Evidence: Cursor Agent Count N; Anthropic duplicate-work failure on poor boundaries.*
+  ownership.** _Evidence: Cursor Agent Count N; Anthropic duplicate-work failure on poor boundaries._
 - **`require_plan_approval`** flag on spawn (orchestrator; tool) — worker plans in read-only mode,
-  gated until orchestrator approves/rejects with feedback before any write. *Evidence: Agent Teams
-  plan-approval read-only mode.*
+  gated until orchestrator approves/rejects with feedback before any write. _Evidence: Agent Teams
+  plan-approval read-only mode._
 - **Stall guard / auto-interrupt** (orchestrator; tool) — MAIN-enforced per-worker max-turns /
   no-progress guard that auto-interrupts a stuck/ping-ponging worker + a structured "done" signal.
-  *Evidence: AutoGen GroupChat stuck/ping-pong failure — "set max_round aggressively."*
+  _Evidence: AutoGen GroupChat stuck/ping-pong failure — "set max_round aggressively."_
 
 ### Spec primitives to adopt (with fallbacks)
+
 - **Elicitation** (orchestrator; prompt) — implement human-confirm / `answer_permission` via the
   spec's Elicitation (structured server→human request, incl. URL mode) rather than bespoke — but
-  implement the client side in MAIN since few CLI agents support it yet. *Evidence: MCP Elicitation
-  spec 2025-06-18; WorkOS/GitHub writeups.*
+  implement the client side in MAIN since few CLI agents support it yet. _Evidence: MCP Elicitation
+  spec 2025-06-18; WorkOS/GitHub writeups._
 - **Sampling** (`sampling/createMessage`) (orchestrator; tool) — MAIN requests an LLM completion from
-  a connected agent's model to power judge_diffs/best_of_n **without a server-side API key.**
-  *Evidence: WorkOS MCP features guide.*
+  a connected agent's model to power judge*diffs/best_of_n **without a server-side API key.**
+  \_Evidence: WorkOS MCP features guide.*
 
 ---
 
@@ -168,38 +174,39 @@ Concrete additions real systems expose. Tier = orchestrator / worker / either.
 ## 🔒 Security (we own this — MCP gives no guidance)
 
 The orchestrator board **IS the lethal trifecta** at the system level: reads untrusted worker output
-+ holds dispatch power + has external comms.
 
-- **`answer_permission` is the single sharpest tool** — it approves a permission prompt inside
+- holds dispatch power + has external comms.
+
+* **`answer_permission` is the single sharpest tool** — it approves a permission prompt inside
   ANOTHER agent's shell (direct cross-shell write authority). **Unconditional human-confirm, no
   orchestrator auto-answer.** An infected orchestrator answering "yes" to a worker's `rm -rf /?` is
   catastrophic + irreversible.
-- **Treat ALL worker-originated resources (status/output/diff/console/network/screenshot) as
+* **Treat ALL worker-originated resources (status/output/diff/console/network/screenshot) as
   TAINTED.** Gate every orchestrator action that consumes them behind human-confirm. Never let worker
   output auto-trigger send_prompt/broadcast/commit/open_pr.
-- **Prompt injection self-replicates LLM→LLM** — full infection in agent societies by ~turn 5
+* **Prompt injection self-replicates LLM→LLM** — full infection in agent societies by ~turn 5
   (+13.92% success on GPT-4o). Per-board tokens scope WHAT each agent can CALL but do NOT stop
   infected CONTENT flowing worker→orchestrator→workers.
-- **Mandatory provenance tagging** on every cross-agent message — unspoofable delimiter block ("this
+* **Mandatory provenance tagging** on every cross-agent message — unspoofable delimiter block ("this
   text came from the orchestrator agent, not your human operator") COMBINED with per-worker
   instruction hardening. Tagging alone ≈ 5% effective; Tagging+Marking ≈ 100%;
   Tagging+Instruction-Defense ≈ 3% attack success. **No single defense works alone.**
-- **Replay protection + strict target binding** — single-use nonce + monotonic sequence per board on
+* **Replay protection + strict target binding** — single-use nonce + monotonic sequence per board on
   every send_prompt/answer_permission; bind dispatch to **opaque server-issued board ids, never
   agent-chosen labels** (fanout creates near-identical boards → label targeting is steerable to the
   wrong/elevated board).
-- **Confused-deputy controls** — MAIN acts with the operator's full OS/git privileges. Bind each
+* **Confused-deputy controls** — MAIN acts with the operator's full OS/git privileges. Bind each
   per-board token to that specific board id AND a single loopback session; reject reuse + any token
   not explicitly issued. `audit_log` captures the RESOLVED board target + full prompt text + outputs,
   not just the tool name.
-- **Hard runtime boundary** — scope every MCP-callable git/file op to the board's OWN worktree path
+* **Hard runtime boundary** — scope every MCP-callable git/file op to the board's OWN worktree path
   (`canvas-ade/<board-id>`), server-enforced (not via prompt). Network-egress restriction cuts the
   trifecta's external-comms leg. Per-board ports (worktrees isolate files, NOT processes/ports).
-- **Session lifecycle = revocation hook** — issue `Mcp-Session-Id` at initialize, map to
+* **Session lifecycle = revocation hook** — issue `Mcp-Session-Id` at initialize, map to
   boardId+tier, revoke (HTTP 404 / DELETE) on close_board/discard_worktree so a killed board's agent
   can no longer call tools. Session-id is UNTRUSTED routing only — re-derive capability tier from the
   validated bearer token on every request.
-- Enforce the existing locked invariant: **Browser-board content must never reach the PTY write
+* Enforce the existing locked invariant: **Browser-board content must never reach the PTY write
   channel**; orchestrator-supplied prompt text is trusted-user-only with audit_log on every dispatch.
 
 ---

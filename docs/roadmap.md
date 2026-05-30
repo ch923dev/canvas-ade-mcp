@@ -8,8 +8,9 @@ Legend: 🚦 = hard gate · ✅ = acceptance · 📏 = measured/tested · ⛓ = 
 🔒 = security-critical · 🧪 = the two-layer test gate (contract + live-against-Canvas-ADE).
 
 > **The test rule (applies to every tool/resource in every phase):**
+>
 > 1. **Contract test** — against a mock `CanvasOrchestrator`: schema, auth, tier gating, errors.
-> 2. **Live test** — against the *real* running Canvas ADE (`CANVAS_SMOKE=e2e`, later Playwright):
+> 2. **Live test** — against the _real_ running Canvas ADE (`CANVAS_SMOKE=e2e`, later Playwright):
 >    assert the canvas actually changed. **No tool ships without a green live test.**
 
 ---
@@ -17,7 +18,7 @@ Legend: 🚦 = hard gate · ✅ = acceptance · 📏 = measured/tested · ⛓ = 
 ## Phase 0 — Scaffold + transport skeleton
 
 Stand up the empty package and the loopback MCP endpoint. No real tools yet — prove an agent can
-*connect*.
+_connect_.
 
 - Create the **standalone package** (`package.json`, its own git repo at `Z:\canvas-ade-mcp`, TS
   config mirroring Canvas ADE's strict settings). Add `@modelcontextprotocol/sdk`. **Canvas ADE
@@ -58,7 +59,7 @@ server-side.**
 
 ## Phase 2 — Observation resources (read-only, lowest risk)
 
-Give agents *eyes* before *hands*. All read-only, so safest to ship first.
+Give agents _eyes_ before _hands_. All read-only, so safest to ship first.
 
 - Resources: `canvas://boards`, `canvas://board/{id}/status`, `canvas://board-states` (bucketed
   idle/running/awaiting-review/blocked/failed), `canvas://attention`.
@@ -74,7 +75,7 @@ Give agents *eyes* before *hands*. All read-only, so safest to ship first.
 
 ## Phase 3 — Lifecycle tools (orchestrator)
 
-First *write* tools — but creation only, no cross-agent influence yet.
+First _write_ tools — but creation only, no cross-agent influence yet.
 
 - `spawn_board(type, prompt?, cwd?)`, `close_board(id)` (graceful drain, not immediate kill),
   `configure_board(id, …)`. 🔒 hard concurrency cap + idle-reaping (the runaway-swarm guard).
@@ -89,14 +90,14 @@ First *write* tools — but creation only, no cross-agent influence yet.
 
 ## Phase 4 — Dispatch (the first dangerous tool) 🔒
 
-The orchestrator gains a *voice into another agent's shell*. Maximum care.
+The orchestrator gains a _voice into another agent's shell_. Maximum care.
 
 - Split the conflated `send_prompt` into **`handoff_prompt`** (blocking — send, await idle, return
   result) and **`assign_prompt`** (fire-and-forget, worker reports via `write_result`). Plus
   `interrupt(id)`.
 - 🔒 every dispatch: **provenance-tag wrapping** (unspoofable "from orchestrator, not your operator")
-  + single-use **nonce** + monotonic sequence + **human-confirm** + **audit_log** (resolved target +
-  full prompt text + outputs).
+  - single-use **nonce** + monotonic sequence + **human-confirm** + **audit_log** (resolved target +
+    full prompt text + outputs).
 - 🔒 bind to **opaque server-issued board id**, never agent-chosen label.
 - 🔒 enforce the locked invariant: Browser content never reaches PTY; dispatched text is
   trusted-user-only.
@@ -113,7 +114,7 @@ The orchestrator gains a *voice into another agent's shell*. Maximum care.
 
 ## Phase 5 — Barriers + event-driven attention
 
-Make the orchestrator able to *wait* efficiently — the backbone of sequenced swarms.
+Make the orchestrator able to _wait_ efficiently — the backbone of sequenced swarms.
 
 - `wait_for_idle(id)` / `wait_for_all(ids[])` implemented via **resource subscription** on
   `canvas://attention` (`notifications/resources/updated` over the GET-SSE stream) — NOT polling.
@@ -147,14 +148,14 @@ Review + integrate worker output. **Blocked until Canvas ADE ships git-worktrees
 
 The headline command-board capability — and the most dangerous single tool.
 
-- `answer_permission(id, yes|no)` — approves/denies a permission prompt inside *another* agent's
+- `answer_permission(id, yes|no)` — approves/denies a permission prompt inside _another_ agent's
   shell. 🔒 **UNCONDITIONAL human-confirm, no orchestrator auto-answer, ever.** Full audit.
 - 🧪 **Contract:** any auto-answer path is impossible by construction; every call requires the human
   gate; denied calls are audited.
 - 🧪 **Live:** drive a worker agent to a real permission prompt → it surfaces as `blocked` in
   `canvas://attention` → orchestrator requests approval → **human confirms** → the worker's shell
   receives the answer and proceeds.
-- ✅📏 a blocked worker becomes unblockable *through the human*, never silently by the orchestrator.
+- ✅📏 a blocked worker becomes unblockable _through the human_, never silently by the orchestrator.
   🔒🚦 **gate:** zero code paths allow an unconfirmed permission answer. ⛓ Phase 4, 5.
 
 ---

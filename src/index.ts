@@ -1,0 +1,6 @@
+export { createMcpHttpServer } from './server/mcpHttp'
+export type { McpServerDeps, RunningMcpServer } from './server/mcpHttp'
+export { TokenStore } from './auth/tokens'
+export { MockOrchestrator } from './orchestrator/mock'
+export type { Orchestrator, BoardSummary } from './orchestrator/Orchestrator'
+export type { Tier, Scope, AuthRow, BoardId } from './types'
