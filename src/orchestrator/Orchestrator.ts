@@ -3,7 +3,10 @@ import type { BoardId } from '../types'
 /** Minimal board projection exposed to agents. */
 export interface BoardSummary {
   id: BoardId
+  /** Board type — 'terminal' | 'browser' | 'planning' (open string for forward types). */
   type: string
+  /** User-facing board title (trusted-user content; no page/whiteboard content). */
+  title: string
   status: string
 }
 
