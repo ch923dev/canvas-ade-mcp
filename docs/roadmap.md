@@ -37,6 +37,12 @@ _connect_.
 
 ## Phase 1 — Auth + capability tier-factory 🔒
 
+> **Status:** ✅ shipped (2026-05-30, pre-MAIN). Capability split proven at
+> `tools/list` + `tools/call`; invalid/expired/revoked/cross-board all 401; scope
+> model + mint helper + `.mcp.json` writer landed and tested. Live tests run their
+> own loopback HTTP server (the drive-the-real-Canvas-ADE form activates at the
+> MAIN-wiring milestone). See ADR 0002.
+
 The spine of the whole security model: prove that **what an agent can call is decided by its token,
 server-side.**
 
