@@ -1,0 +1,35 @@
+name: publish
+
+# Publishes @ch923dev/canvas-ade-mcp to GitHub Packages on a version tag (v*),
+# or manually via workflow_dispatch. Uses the repo's own GITHUB_TOKEN — a repo
+# that publishes a package is automatically granted admin on that package, so no
+# PAT is needed to PUBLISH (consuming from another repo is a separate grant).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # Writes ~/.npmrc with the scoped registry + token auth so pnpm publish
+          # routes to GitHub Packages and authenticates with NODE_AUTH_TOKEN.
+          registry-url: https://npm.pkg.github.com
+          scope: '@ch923dev'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

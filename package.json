@@ -1,8 +1,15 @@
 {
-  "name": "canvas-ade-mcp",
-  "version": "0.0.0",
+  "name": "@ch923dev/canvas-ade-mcp",
+  "version": "0.1.0",
   "description": "MCP server layer for Canvas ADE — lets AI agents in Terminal boards orchestrate the canvas (command board / swarm).",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ch923dev/canvas-ade-mcp.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
