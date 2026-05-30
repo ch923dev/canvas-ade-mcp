@@ -19,11 +19,14 @@
 - **D2 — Scope vocabulary.** `read`, `dispatch`, `spawn`, `git:write`,
   `answer_permission`. `worker → [read]`; `orchestrator → all five`. Scopes are data
   carried by the token (`AuthInfo.scopes`), not yet a runtime gate.
-- **D3 — Token expiry.** `mintBoardToken` sets no `expiresAt` by default: a token
-  lives for the board's lifetime and is dropped by `TokenStore.revoke` on board
-  close. A short TTL would expire a long agent run mid-session. An optional
-  `ttlSeconds` exists for deliberately short-lived tokens; `requireBearerAuth`
-  enforces expiry when set.
+- **D3 — Token expiry.** `mintBoardToken` ALWAYS sets a board-lifetime `expiresAt`
+  (~1 year). The SDK's `requireBearerAuth` rejects a token whose `expiresAt` is not
+  a number ("Token has no expiration time"), so a missing expiry is NOT a valid
+  "never expires" — it is an auth failure. The default is set far out (revoked on
+  board close, so it never kills a long agent run mid-session); an optional
+  `ttlSeconds` overrides it for deliberately short-lived tokens. (Corrected
+  2026-05-30 after the Canvas ADE MAIN-wiring live smoke surfaced the rejection —
+  the package's own live tests had only exercised the expiry-setting test helper.)
 - **D4 — `requiredScopes` middleware arg is NOT used for tier separation.** It is
   one coarse value per mount; the register-only factory is the real gate. Left unset.
 - **D5 — Board binding.** `ctxFromAuth` derives `tier`/`boardId`/`scopes` solely
