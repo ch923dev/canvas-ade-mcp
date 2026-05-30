@@ -4,12 +4,13 @@
 
 **Goal:** Prove that what an agent can call is decided solely by its bearer token, server-side, and that the token lifecycle (invalid / expired / revoked / cross-board) is airtight — across both the contract and live test layers.
 
-**Architecture:** Phase 0 already stood up the auth spine (bearer verifier + token store, `requireBearerAuth` on every `/mcp` request, a register-only tier factory). Phase 1 is *hardening*: add the missing tests that lock the guarantees in, formalize the scope model as data carried by the token, and ship MAIN-agnostic lib utilities (token mint helper + `.mcp.json` writer) in isolation. No new transport or framework code.
+**Architecture:** Phase 0 already stood up the auth spine (bearer verifier + token store, `requireBearerAuth` on every `/mcp` request, a register-only tier factory). Phase 1 is _hardening_: add the missing tests that lock the guarantees in, formalize the scope model as data carried by the token, and ship MAIN-agnostic lib utilities (token mint helper + `.mcp.json` writer) in isolation. No new transport or framework code.
 
 **Tech Stack:** TypeScript 6 (`moduleResolution: Bundler`), `@modelcontextprotocol/sdk@1.29.0`, `express@5`, `zod@4`, `vitest@4` (two projects: `contract` = in-memory/no-HTTP, `live` = real loopback HTTP), `tsup`, `eslint@10`, `prettier@3`. Run from `Z:\canvas-ade-mcp` with `corepack pnpm <script>`.
 
 **Locked decisions (recorded in `docs/decisions/0002-phase-1-auth-scope-model.md`, written in Task 7):**
-- **D1 — no cross-tier runtime guard.** Tier separation is enforced by *registration*: a worker's server never registers `orchestrator_ping`, so the callback cannot run. A belt-and-suspenders guard inside that callback would be dead code for the cross-tier case. Per-tool *scope* gating (within a tier) is deferred to Phase 3, which will consume the scope model defined here.
+
+- **D1 — no cross-tier runtime guard.** Tier separation is enforced by _registration_: a worker's server never registers `orchestrator_ping`, so the callback cannot run. A belt-and-suspenders guard inside that callback would be dead code for the cross-tier case. Per-tool _scope_ gating (within a tier) is deferred to Phase 3, which will consume the scope model defined here.
 - **D2 — scope vocabulary.** `read`, `dispatch`, `spawn`, `git:write`, `answer_permission`. `worker → [read]`; `orchestrator → all five`.
 - **D3 — token expiry.** `mintBoardToken` sets **no** `expiresAt` by default (board-lifetime; revoked on board close). A short TTL would expire a long agent run mid-session. An optional `ttlSeconds` exists for deliberately short-lived tokens. `requireBearerAuth` enforces expiry when set.
 - **D4 — `requiredScopes` middleware arg is NOT used for tier separation.** It is one coarse value per mount; the register-only factory is the real gate.
@@ -22,6 +23,7 @@
 ## File Structure
 
 **Create:**
+
 - `src/auth/scopes.ts` — scope string constants + `defaultScopesFor(tier)` (the tier→scopes map). One responsibility: the scope vocabulary.
 - `src/auth/mint.ts` — `mintBoardToken(store, input)` crypto-random token mint helper over `TokenStore`.
 - `src/config/mcpJson.ts` — pure `buildMcpJson(port, token)` + thin `writeMcpJson(dir, port, token)` writer.
@@ -34,6 +36,7 @@
 - `docs/decisions/0002-phase-1-auth-scope-model.md` — Task 7 ADR.
 
 **Modify:**
+
 - `src/server/mcpHttp.ts:28-33` — export `ctxFromAuth` (currently a local function).
 - `src/index.ts` — re-export the new public lib utilities.
 - `docs/roadmap.md` — Phase 1 status line.
@@ -45,6 +48,7 @@
 Registration already hides other-tier tools, so a worker calling `orchestrator_ping` gets method-not-found from the SDK. This task **documents that behavior with a live test** and confirms the orchestrator path still works. Per D1, no runtime guard is added.
 
 **Files:**
+
 - Test: `test/live/tierCall.live.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -119,6 +123,7 @@ git commit -m "test(phase-1): lock tools/call tier enforcement (worker denied or
 The key risk surface: invalid / expired / revoked tokens must all 401. `requireBearerAuth` runs before any session or tool logic, so a raw `fetch` of an `initialize` is enough to assert the status (mirrors the existing missing-token test).
 
 **Files:**
+
 - Test: `test/live/tokenLifecycle.live.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -212,6 +217,7 @@ git commit -m "test(phase-1): lock invalid/expired/revoked 401 + auth-runs-befor
 `Scope` exists in `src/types.ts` but is unused. Define the scope strings and the tier→default-scopes map as data the token carries. Per D1/D4 the factory's tier registration is the real gate; scopes are the finer lever Phases 3+ will consume.
 
 **Files:**
+
 - Create: `src/auth/scopes.ts`
 - Test: `test/contract/scopes.contract.test.ts`
 
@@ -317,6 +323,7 @@ git commit -m "feat(phase-1): scope vocabulary + tier->default-scopes map"
 `ctxFromAuth` already derives the context from the token only — but it's a private function with no test. Export it and lock its behavior so a future change can't introduce an agent-supplied boardId path (D5). Cross-board isolation falls out for free: the only boardId source is the token.
 
 **Files:**
+
 - Modify: `src/server/mcpHttp.ts:28` (add `export`)
 - Test: `test/contract/boardBinding.contract.test.ts`
 
@@ -399,6 +406,7 @@ git commit -m "test(phase-1): lock ctxFromAuth board binding (token is sole auth
 Crypto-random per-board token minted into `TokenStore`, scopes from the tier, no expiry by default (D3).
 
 **Files:**
+
 - Create: `src/auth/mint.ts`
 - Test: `test/contract/mint.contract.test.ts`
 
@@ -509,6 +517,7 @@ git commit -m "feat(phase-1): mintBoardToken crypto-random per-board token helpe
 Pure builder + thin writer for a board worktree's project-scoped `.mcp.json`. No OAuth discovery (ADR 0001). Unit-testable without Electron.
 
 **Files:**
+
 - Create: `src/config/mcpJson.ts`
 - Test: `test/contract/mcpJson.contract.test.ts`
 
@@ -615,9 +624,10 @@ git commit -m "feat(phase-1): buildMcpJson + writeMcpJson worktree config writer
 
 ## Task 6: Public exports
 
-Surface the new MAIN-agnostic utilities from the package entry so Canvas ADE MAIN can consume them. (The Task 6 *test* — auth-runs-before-session — already shipped in Task 2.)
+Surface the new MAIN-agnostic utilities from the package entry so Canvas ADE MAIN can consume them. (The Task 6 _test_ — auth-runs-before-session — already shipped in Task 2.)
 
 **Files:**
+
 - Modify: `src/index.ts`
 
 - [ ] **Step 1: Add exports**
@@ -664,6 +674,7 @@ git commit -m "feat(phase-1): export mint + scopes + mcpJson utilities"
 Record the load-bearing Phase 1 decisions and flip the roadmap status.
 
 **Files:**
+
 - Create: `docs/decisions/0002-phase-1-auth-scope-model.md`
 - Modify: `docs/roadmap.md:38` (under the Phase 1 header)
 
@@ -686,7 +697,7 @@ Create `docs/decisions/0002-phase-1-auth-scope-model.md`:
   `McpServer` never registers an orchestrator tool, so the tool callback cannot run.
   A belt-and-suspenders guard inside that callback is dead code for the cross-tier
   case. Enforcement is proven at BOTH `tools/list` (Phase 0 contract test) and
-  `tools/call` (Phase 1 live test). Per-tool *scope* gating (finer-grained, within a
+  `tools/call` (Phase 1 live test). Per-tool _scope_ gating (finer-grained, within a
   tier) is deferred to Phase 3, which consumes the scope model below.
 - **D2 — Scope vocabulary.** `read`, `dispatch`, `spawn`, `git:write`,
   `answer_permission`. `worker → [read]`; `orchestrator → all five`. Scopes are data
@@ -742,6 +753,7 @@ Run every gate the Definition of Done requires, then push.
 - [ ] **Step 1: Run all gates**
 
 Run:
+
 ```bash
 corepack pnpm typecheck
 corepack pnpm build
@@ -750,6 +762,7 @@ corepack pnpm test:live
 corepack pnpm lint
 corepack pnpm exec prettier --check .
 ```
+
 Expected: typecheck clean · build clean · **contract 18 passed** · **live 11 passed** · lint clean · prettier clean.
 
 If prettier flags any new file, run `corepack pnpm format` and amend the relevant commit (or add a `style:` commit).
@@ -781,4 +794,7 @@ git push origin main
 - **Type consistency:** `mintBoardToken(store, {boardId,tier,ttlSeconds?}) → {token, row}`, `defaultScopesFor(tier) → Scope[]`, `buildMcpJson(port, token) → McpJson`, `writeMcpJson(dir, port, token) → string`, `ctxFromAuth(auth) → SessionCtx`. Names consistent across tasks + exports. ✅
 - **Placeholder scan:** no TBD/TODO/"add appropriate X"; every code step shows full code. ✅
 - **Invariant guardrails honored:** register-only (no register-all-then-gate), tier-from-token, no OAuth discovery, SDK auth imports stay in `src/auth/`, far-future/no expiry for real tokens. ✅
+
+```
+
 ```

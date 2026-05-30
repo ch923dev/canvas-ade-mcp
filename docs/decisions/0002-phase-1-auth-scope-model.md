@@ -13,7 +13,7 @@
   A belt-and-suspenders guard inside that callback is dead code for the cross-tier
   case. Enforcement is proven at BOTH `tools/list` (Phase 0 contract test) and
   `tools/call` (Phase 1 live test — a worker's call returns an `isError` result,
-  `"Tool orchestrator_ping not found"`, never executing). Per-tool *scope* gating
+  `"Tool orchestrator_ping not found"`, never executing). Per-tool _scope_ gating
   (finer-grained, within a tier) is deferred to Phase 3, which consumes the scope
   model below.
 - **D2 — Scope vocabulary.** `read`, `dispatch`, `spawn`, `git:write`,
