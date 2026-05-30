@@ -25,7 +25,7 @@ export interface RunningMcpServer {
 }
 
 /** Re-derive the session context from the server-verified bearer token. */
-function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
+export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
   const extra = (auth?.extra ?? {}) as { tier?: unknown; boardId?: unknown }
   const tier: Tier = extra.tier === 'orchestrator' ? 'orchestrator' : 'worker'
   const boardId = typeof extra.boardId === 'string' ? extra.boardId : ''
