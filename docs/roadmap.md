@@ -67,6 +67,17 @@ server-side.**
 
 Give agents _eyes_ before _hands_. All read-only, so safest to ship first.
 
+> **Forward note — board task-context & cross-board linkage (not yet built).** Beyond _listing_
+> boards, each board should carry a **description of the task it handles**, so the orchestrator
+> understands what each board is _for_ and how boards _relate_ — the connective tissue of the swarm
+> layer. **Browser:** what it is previewing + its linkage (e.g. "previewing the dev server terminal
+> `<id>` is building"). **Planning:** a separate future feature that **summarizes the board's contents
+> (notes/checklists/arrows) into a machine-readable artifact** — a Mermaid diagram or markdown doc —
+> handed off to another agent or read via the MCP, turning the whiteboard into shared, queryable
+> context. Likely a richer snapshot field or dedicated resources (`canvas://board/{id}/description`,
+> `canvas://board/{id}/summary`); descriptions user-authored or agent-derived. Pairs with the Phase 9
+> coordination layer. (Captured 2026-05-30; first board-listing slice ships `id/type/title` only.)
+
 - Resources: `canvas://boards`, `canvas://board/{id}/status`, `canvas://board-states` (bucketed
   idle/running/awaiting-review/blocked/failed), `canvas://attention`.
 - Read tools→resources done right: `canvas://board/{id}/output` (size-capped/paginated — 🔒 never
