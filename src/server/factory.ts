@@ -10,6 +10,7 @@ import { registerConfigureBoard } from './tools/configureBoard'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
+import { registerInterrupt } from './tools/interrupt'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -53,6 +54,7 @@ export class ServerFactory {
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
       registerAssignPrompt(server, this.orchestrator)
+      registerInterrupt(server, this.orchestrator)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers

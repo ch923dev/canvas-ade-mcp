@@ -31,6 +31,8 @@ export class MockOrchestrator implements Orchestrator {
 
   async writeResult(_boardId: BoardId, _result: BoardResultInput): Promise<void> {}
 
+  async interrupt(_boardId: BoardId): Promise<void> {}
+
   async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
     return { present: false }
   }

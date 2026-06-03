@@ -125,6 +125,13 @@ export interface Orchestrator {
    */
   writeResult(boardId: BoardId, result: BoardResultInput): Promise<void>
   /**
+   * 🔒 Interrupt the target terminal board (M4 T4.5) — send Ctrl-C (`\x03`) to its PTY to
+   * stop a runaway/long-running command. Orchestrator-tier only. The host gates it behind
+   * a single-use nonce + a mandatory human confirm + an audit entry, and rejects any
+   * non-terminal target (Browser/Planning never reach a PTY). Content-less.
+   */
+  interrupt(boardId: BoardId): Promise<void>
+  /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier
    * only. The host gates it behind a single-use nonce + a mandatory human confirm +

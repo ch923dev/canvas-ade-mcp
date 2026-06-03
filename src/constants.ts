@@ -16,6 +16,7 @@ export const TOOL_CONFIGURE_BOARD = 'configure_board'
 /** Phase 4 dispatch tools (write into another board's PTY). Orchestrator-tier only. */
 export const TOOL_HANDOFF_PROMPT = 'handoff_prompt'
 export const TOOL_ASSIGN_PROMPT = 'assign_prompt'
+export const TOOL_INTERRUPT = 'interrupt'
 
 /**
  * Phase 4 worker-tier WRITE tool (T4.4) — the FIRST tool a worker may call to mutate
