@@ -1,6 +1,6 @@
 {
   "name": "@ch923dev/canvas-ade-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packageManager": "pnpm@9.15.9",
   "description": "MCP server layer for Canvas ADE — lets AI agents in Terminal boards orchestrate the canvas (command board / swarm).",
   "type": "module",
