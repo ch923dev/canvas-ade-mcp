@@ -8,6 +8,7 @@ import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { createVerifier } from '../auth/verifier'
 import type { TokenStore } from '../auth/tokens'
 import { originGuard } from '../security/origin'
+import { hostGuard } from '../security/host'
 import { ServerFactory, type SessionCtx } from './factory'
 import { SessionManager } from './transport'
 
@@ -42,6 +43,8 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
   const app = express()
   app.use(express.json())
 
+  // DNS-rebinding defence in two layers: Host (always required) THEN Origin.
+  app.use(hostGuard())
   let allowedOrigins: readonly string[] = []
   app.use(originGuard(() => allowedOrigins))
 
