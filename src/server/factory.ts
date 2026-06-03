@@ -4,6 +4,7 @@ import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
 import { registerPrompts } from '../prompts/index'
+import { registerSpawnBoard } from './tools/spawnBoard'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -31,13 +32,17 @@ export class ServerFactory {
       content: [{ type: 'text', text: 'pong' }]
     }))
 
-    // orchestrator_ping — registered ONLY for the orchestrator tier.
+    // Orchestrator-only tools — registered ONLY for the orchestrator tier, so a
+    // worker's tools/list never even contains them (the capability split is
+    // structural, never a per-handler check).
     if (ctx.tier === 'orchestrator') {
       server.registerTool(
         TOOL_ORCHESTRATOR_PING,
         { description: 'Orchestrator-only health check. Returns "orchestrator-pong".' },
         async () => ({ content: [{ type: 'text', text: 'orchestrator-pong' }] })
       )
+      // Lifecycle write tools (Phase 3+).
+      registerSpawnBoard(server, this.orchestrator)
     }
 
     registerBoardResources(server, this.orchestrator)
