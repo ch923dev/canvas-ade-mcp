@@ -21,6 +21,8 @@ export class MockOrchestrator implements Orchestrator {
     return { id: 'mock-board' }
   }
 
+  async closeBoard(_boardId: BoardId): Promise<void> {}
+
   async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
 
   async gitDiff(_boardId: BoardId): Promise<string> {

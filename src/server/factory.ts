@@ -5,6 +5,7 @@ import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
 import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
+import { registerCloseBoard } from './tools/closeBoard'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -43,6 +44,7 @@ export class ServerFactory {
       )
       // Lifecycle write tools (Phase 3+).
       registerSpawnBoard(server, this.orchestrator)
+      registerCloseBoard(server, this.orchestrator)
     }
 
     registerBoardResources(server, this.orchestrator)

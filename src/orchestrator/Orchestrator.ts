@@ -77,6 +77,12 @@ export interface MemoryDoc {
 export interface Orchestrator {
   listBoards(): Promise<BoardSummary[]>
   spawnBoard(input: { type: string; prompt?: string; cwd?: string }): Promise<{ id: BoardId }>
+  /**
+   * Close a board (T3.2). The host drains the board's PTY gracefully (not an abrupt
+   * SIGKILL) before removing it from the canvas. Idempotent: closing an absent board
+   * resolves. The dirty-worktree prompt arrives with Feature Workspaces (M6).
+   */
+  closeBoard(boardId: BoardId): Promise<void>
   dispatchPrompt(boardId: BoardId, text: string): Promise<void>
   gitDiff(boardId: BoardId): Promise<string>
   boardStatus(boardId: BoardId): Promise<string>
