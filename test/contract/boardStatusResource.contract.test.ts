@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
-import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type {
+  BoardOutput,
+  BoardResult,
+  BoardSummary,
+  Orchestrator
+} from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator whose `boardStatus` returns a known bucket per id. */
@@ -20,6 +25,9 @@ class StatusOrchestrator implements Orchestrator {
   }
   async boardOutput(): Promise<BoardOutput> {
     return { text: '', total: 0, returned: 0, droppedOlder: false }
+  }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
   }
 }
 

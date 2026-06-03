@@ -2,7 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
-import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type {
+  BoardOutput,
+  BoardResult,
+  BoardSummary,
+  Orchestrator
+} from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator whose board status varies by id — proves the template var routes. */
@@ -22,6 +27,9 @@ class StatusOrchestrator implements Orchestrator {
   }
   async boardOutput(): Promise<BoardOutput> {
     return { text: '', total: 0, returned: 0, droppedOlder: false }
+  }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
   }
 }
 

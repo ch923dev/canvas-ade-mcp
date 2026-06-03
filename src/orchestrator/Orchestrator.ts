@@ -36,6 +36,25 @@ export interface BoardOutput {
 }
 
 /**
+ * A board's structured last result (T1.5) — references and a verdict, NOT raw logs
+ * (raw scrollback is `BoardOutput`). v1 is an observational shell: until M4's
+ * `write_result` tool lets a worker record one, every board reads `{ present: false }`.
+ * Designed so M4 fills the optional fields without changing the contract.
+ */
+export interface BoardResult {
+  /** Whether a result has been recorded for this board (false until M4 writes one). */
+  present: boolean
+  /** Verdict of the last completed task, e.g. 'success' | 'failure' (open string). */
+  status?: string
+  /** One-line human summary (references, not raw logs). */
+  summary?: string
+  /** Structured references the worker produced — file paths, PR/issue URLs, etc. */
+  refs?: string[]
+  /** ISO-8601 timestamp when the result was recorded. */
+  at?: string
+}
+
+/**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
  * lets canvas-ade-mcp build + test standalone, with no Electron dependency.
@@ -51,4 +70,9 @@ export interface Orchestrator {
    * tail-anchored offset from a prior page's `nextCursor`; omit for the newest tail.
    */
   boardOutput(boardId: BoardId, opts?: { cursor?: number }): Promise<BoardOutput>
+  /**
+   * Read a board's structured last result (T1.5, read-only). Returns the empty shell
+   * `{ present: false }` until a result has been recorded (M4 `write_result`).
+   */
+  boardResult(boardId: BoardId): Promise<BoardResult>
 }

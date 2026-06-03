@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import { MAX_OUTPUT_PAGE } from '../../src/constants'
-import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type {
+  BoardOutput,
+  BoardResult,
+  BoardSummary,
+  Orchestrator
+} from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 /**
@@ -40,6 +45,9 @@ class OutputOrchestrator implements Orchestrator {
       nextCursor: moreOlder ? cursor + text.length : undefined,
       droppedOlder: false
     }
+  }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
   }
 }
 

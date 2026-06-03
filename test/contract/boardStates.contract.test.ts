@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import { groupBoardsByStatus } from '../../src/resources/boardStates'
-import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type {
+  BoardOutput,
+  BoardResult,
+  BoardSummary,
+  Orchestrator
+} from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator returning a fixed mixed-status board list. */
@@ -26,6 +31,9 @@ class MixedOrchestrator implements Orchestrator {
   }
   async boardOutput(): Promise<BoardOutput> {
     return { text: '', total: 0, returned: 0, droppedOlder: false }
+  }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
   }
 }
 

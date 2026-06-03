@@ -3,7 +3,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
 import { MAX_OUTPUT_PAGE } from '../../src/constants'
-import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type {
+  BoardOutput,
+  BoardResult,
+  BoardSummary,
+  Orchestrator
+} from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 /** Tail-anchored paging over a fixed buffer — the real app accessor's contract. */
@@ -37,9 +42,12 @@ class OutputOrchestrator implements Orchestrator {
       droppedOlder: false
     }
   }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
+  }
 }
 
-function parse(res: { contents: ReadonlyArray<{ text?: unknown }> }): BoardOutput {
+function parse(res: { contents: ReadonlyArray<{ uri?: unknown; text?: unknown }> }): BoardOutput {
   const text = res.contents.map((c) => ('text' in c ? c.text : '')).join('')
   return JSON.parse(text as string) as BoardOutput
 }
