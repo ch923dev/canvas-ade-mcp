@@ -7,6 +7,7 @@ import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
+import { registerHandoffPrompt } from './tools/handoffPrompt'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -47,6 +48,8 @@ export class ServerFactory {
       registerSpawnBoard(server, this.orchestrator)
       registerCloseBoard(server, this.orchestrator)
       registerConfigureBoard(server, this.orchestrator)
+      // Dispatch write tools (Phase 4) — write into another board's PTY.
+      registerHandoffPrompt(server, this.orchestrator)
     }
 
     registerBoardResources(server, this.orchestrator)

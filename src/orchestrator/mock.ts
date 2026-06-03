@@ -28,6 +28,10 @@ export class MockOrchestrator implements Orchestrator {
 
   async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
 
+  async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
+    return { present: false }
+  }
+
   async gitDiff(_boardId: BoardId): Promise<string> {
     return ''
   }

@@ -13,6 +13,9 @@ export const TOOL_SPAWN_BOARD = 'spawn_board'
 export const TOOL_CLOSE_BOARD = 'close_board'
 export const TOOL_CONFIGURE_BOARD = 'configure_board'
 
+/** Phase 4 dispatch tools (write into another board's PTY). Orchestrator-tier only. */
+export const TOOL_HANDOFF_PROMPT = 'handoff_prompt'
+
 /**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.

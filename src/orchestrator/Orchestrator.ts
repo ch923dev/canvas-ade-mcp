@@ -103,6 +103,14 @@ export interface Orchestrator {
    */
   configureBoard(boardId: BoardId, config: BoardConfig): Promise<void>
   dispatchPrompt(boardId: BoardId, text: string): Promise<void>
+  /**
+   * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
+   * wait until it goes idle, and return its structured last result. Orchestrator-tier
+   * only. The host gates it behind a single-use nonce + a mandatory human confirm +
+   * an audit entry, and rejects any non-terminal target (Browser/Planning content
+   * never reaches a PTY). Resolves to the {@link BoardResult} the target produced.
+   */
+  handoffPrompt(boardId: BoardId, text: string): Promise<BoardResult>
   gitDiff(boardId: BoardId): Promise<string>
   boardStatus(boardId: BoardId): Promise<string>
   /**
