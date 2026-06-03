@@ -132,6 +132,14 @@ export interface Orchestrator {
    */
   interrupt(boardId: BoardId): Promise<void>
   /**
+   * 🔒 Agent-to-agent relay (M4 T4.6) — dispatch `text` from board `sourceId` to board
+   * `targetId`, expressed by an ORCHESTRATION connector `sourceId → targetId` (the cable
+   * is the route + intent). Orchestrator-tier only. The host validates the directed edge
+   * exists and is **terminal → terminal** (never Browser → PTY), then gates the write
+   * behind a single-use nonce + a mandatory human confirm + an audit entry. Fire-and-forget.
+   */
+  relayPrompt(sourceId: BoardId, targetId: BoardId, text: string): Promise<void>
+  /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier
    * only. The host gates it behind a single-use nonce + a mandatory human confirm +
