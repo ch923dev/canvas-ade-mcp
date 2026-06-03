@@ -1,0 +1,66 @@
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
+import type { BoardOutput, Orchestrator } from '../orchestrator/Orchestrator'
+import { MAX_OUTPUT_PAGE } from '../constants'
+
+/** First value of a templated URI variable (templates yield string | string[]). */
+function first(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v
+}
+
+/**
+ * Read one capped page of a board's scrollback and serialize it. Shared by both the
+ * tail (no cursor) and `?cursor` templates. **🔒 Hard-caps the page at
+ * `MAX_OUTPUT_PAGE` here too** — defense in depth, so a misbehaving host can never
+ * make this resource dump more than one MCP page (the host already caps; this is the
+ * belt-and-suspenders the security checklist requires). `nextCursor`/`droppedOlder`
+ * pass through unchanged so the agent always knows whether to keep paging.
+ */
+async function readPage(
+  orchestrator: Orchestrator,
+  uriHref: string,
+  variables: Variables
+): Promise<{ contents: Array<{ uri: string; text: string }> }> {
+  const id = first(variables.id)
+  if (!id) throw new Error('canvas://board/{id}/output: missing board id')
+  const rawCursor = first(variables.cursor)
+  const cursor = rawCursor !== undefined ? Number(rawCursor) : undefined
+  const opts =
+    cursor !== undefined && Number.isFinite(cursor) && cursor >= 0 ? { cursor } : undefined
+
+  const out = await orchestrator.boardOutput(id, opts)
+  // 🔒 never emit more than one page, whatever the host returned.
+  const text = out.text.length > MAX_OUTPUT_PAGE ? out.text.slice(0, MAX_OUTPUT_PAGE) : out.text
+  const page: BoardOutput = { ...out, text, returned: text.length }
+  return { contents: [{ uri: uriHref, text: JSON.stringify(page) }] }
+}
+
+/**
+ * Registers the read-only, capped, paginated `canvas://board/{id}/output` resource
+ * (T1.4 🔒 — both tiers; observation is safe). Two disjoint templates back ONE
+ * logical resource because the SDK's UriTemplate compiles `{?cursor}` into a
+ * MANDATORY query group — a URI with no `?cursor` won't match it. So:
+ *   - `canvas://board/{id}/output`          → newest tail page (no cursor)
+ *   - `canvas://board/{id}/output{?cursor}` → an older page at the given cursor
+ * Their regexes are mutually exclusive (`…/output$` vs `…/output\?cursor=…$`), so
+ * each concrete read routes to exactly one. Both delegate to `readPage`.
+ */
+export function registerBoardOutputResource(server: McpServer, orchestrator: Orchestrator): void {
+  const meta = {
+    description:
+      "A capped, paginated, ANSI-stripped page of a board's recent output (tail-anchored; pass nextCursor as ?cursor for older).",
+    mimeType: 'application/json'
+  }
+  server.registerResource(
+    'board-output',
+    new ResourceTemplate('canvas://board/{id}/output', { list: undefined }),
+    meta,
+    (uri, variables) => readPage(orchestrator, uri.href, variables)
+  )
+  server.registerResource(
+    'board-output-paged',
+    new ResourceTemplate('canvas://board/{id}/output{?cursor}', { list: undefined }),
+    meta,
+    (uri, variables) => readPage(orchestrator, uri.href, variables)
+  )
+}

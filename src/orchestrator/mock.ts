@@ -1,5 +1,5 @@
 import type { BoardId } from '../types'
-import type { BoardSummary, Orchestrator } from './Orchestrator'
+import type { BoardOutput, BoardSummary, Orchestrator } from './Orchestrator'
 
 /** A no-op Orchestrator for contract tests and standalone runs. */
 export class MockOrchestrator implements Orchestrator {
@@ -23,5 +23,9 @@ export class MockOrchestrator implements Orchestrator {
 
   async boardStatus(_boardId: BoardId): Promise<string> {
     return 'idle'
+  }
+
+  async boardOutput(_boardId: BoardId, _opts?: { cursor?: number }): Promise<BoardOutput> {
+    return { text: '', total: 0, returned: 0, droppedOlder: false }
   }
 }

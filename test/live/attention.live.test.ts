@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
-import type { BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
+import type { BoardOutput, BoardSummary, Orchestrator } from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
 class MixedOrchestrator implements Orchestrator {
@@ -22,6 +22,9 @@ class MixedOrchestrator implements Orchestrator {
   }
   async boardStatus(): Promise<string> {
     return 'idle'
+  }
+  async boardOutput(): Promise<BoardOutput> {
+    return { text: '', total: 0, returned: 0, droppedOlder: false }
   }
 }
 

@@ -14,5 +14,6 @@ export {
 export { buildMcpJson, writeMcpJson } from './config/mcpJson'
 export type { McpJson } from './config/mcpJson'
 export { MockOrchestrator } from './orchestrator/mock'
-export type { Orchestrator, BoardSummary } from './orchestrator/Orchestrator'
+export type { Orchestrator, BoardSummary, BoardOutput } from './orchestrator/Orchestrator'
+export { MAX_OUTPUT_PAGE } from './constants'
 export type { Tier, Scope, AuthRow, BoardId } from './types'
