@@ -70,6 +70,20 @@ export interface MemoryDoc {
 }
 
 /**
+ * Durable per-type config an orchestrator may change on a board (T3.3). All optional —
+ * only the supplied fields are applied. Host-side, off-type/identity keys are dropped
+ * (the canvas patch is filtered by the board's patchable keys), so this is the safe set.
+ */
+export interface BoardConfig {
+  /** Terminal shell (Win: pwsh|powershell|cmd; *nix: $SHELL/zsh/bash). */
+  shell?: string
+  /** First PTY line written after the shell starts (the agentic CLI / command). */
+  launchCommand?: string
+  /** Working directory for the board. */
+  cwd?: string
+}
+
+/**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
  * lets canvas-ade-mcp build + test standalone, with no Electron dependency.
@@ -83,6 +97,11 @@ export interface Orchestrator {
    * resolves. The dirty-worktree prompt arrives with Feature Workspaces (M6).
    */
   closeBoard(boardId: BoardId): Promise<void>
+  /**
+   * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
+   * supplied fields change; the host filters to the board type's patchable keys.
+   */
+  configureBoard(boardId: BoardId, config: BoardConfig): Promise<void>
   dispatchPrompt(boardId: BoardId, text: string): Promise<void>
   gitDiff(boardId: BoardId): Promise<string>
   boardStatus(boardId: BoardId): Promise<string>

@@ -1,5 +1,6 @@
 import type { BoardId } from '../types'
 import type {
+  BoardConfig,
   BoardOutput,
   BoardResult,
   BoardSummary,
@@ -22,6 +23,8 @@ export class MockOrchestrator implements Orchestrator {
   }
 
   async closeBoard(_boardId: BoardId): Promise<void> {}
+
+  async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 
   async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
 

@@ -11,6 +11,7 @@ export const TOOL_ORCHESTRATOR_PING = 'orchestrator_ping'
 /** Phase 3 lifecycle tools (write path). Orchestrator-tier only. */
 export const TOOL_SPAWN_BOARD = 'spawn_board'
 export const TOOL_CLOSE_BOARD = 'close_board'
+export const TOOL_CONFIGURE_BOARD = 'configure_board'
 
 /**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
