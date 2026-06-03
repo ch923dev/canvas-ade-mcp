@@ -14,10 +14,11 @@ import type { Tier } from '../../src/types'
  */
 export async function connectInMemory(
   tier: Tier,
-  orchestrator: Orchestrator = new MockOrchestrator()
+  orchestrator: Orchestrator = new MockOrchestrator(),
+  boardId = 'test-board'
 ): Promise<Client> {
   const factory = new ServerFactory(orchestrator)
-  const server = factory.getServer({ tier, scopes: [], boardId: 'test-board' })
+  const server = factory.getServer({ tier, scopes: [], boardId })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'contract-test', version: '0.0.0' })
   await server.connect(serverTransport)

@@ -55,6 +55,21 @@ export interface BoardResult {
 }
 
 /**
+ * The fields a worker may record for its OWN board via `write_result` (T4.4) — a verdict,
+ * a one-line summary, and structured references (NOT raw logs). All optional. The host
+ * stamps `present: true` + `at` and binds the board id to the caller's token, producing
+ * the {@link BoardResult} the `canvas://board/{id}/result` resource then serves.
+ */
+export interface BoardResultInput {
+  /** Verdict of the last completed task, e.g. 'success' | 'failure' (open string). */
+  status?: string
+  /** One-line human summary (references, not raw logs). */
+  summary?: string
+  /** Structured references the worker produced — file paths, PR/issue URLs, etc. */
+  refs?: string[]
+}
+
+/**
  * A read-only slice of the project's persistent memory (T1.7) — the project index
  * (`canvas://memory`) or a per-board summary (`canvas://board/{id}/summary`). It is
  * produced by the sibling Brain/Memory engine's `.canvas/memory/`; 🔒 PASSIVE context
@@ -103,6 +118,12 @@ export interface Orchestrator {
    */
   configureBoard(boardId: BoardId, config: BoardConfig): Promise<void>
   dispatchPrompt(boardId: BoardId, text: string): Promise<void>
+  /**
+   * 🔒 Record the calling worker's OWN board result (M4 T4.4, worker-tier WRITE). The
+   * `boardId` is the caller's token-bound board (never client-supplied), so a worker can
+   * only write its own result. Feeds the `canvas://board/{id}/result` resource (T1.5).
+   */
+  writeResult(boardId: BoardId, result: BoardResultInput): Promise<void>
   /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier

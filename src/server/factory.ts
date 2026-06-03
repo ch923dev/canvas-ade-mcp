@@ -8,6 +8,8 @@ import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
+import { registerAssignPrompt } from './tools/assignPrompt'
+import { registerWriteResult } from './tools/writeResult'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -50,7 +52,13 @@ export class ServerFactory {
       registerConfigureBoard(server, this.orchestrator)
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
+      registerAssignPrompt(server, this.orchestrator)
     }
+
+    // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
+    // (OUTSIDE the orchestrator-only block) and bound to ctx.boardId so a worker can only
+    // record its OWN board's result, never forge another's.
+    registerWriteResult(server, this.orchestrator, ctx)
 
     registerBoardResources(server, this.orchestrator)
     registerPrompts(server)

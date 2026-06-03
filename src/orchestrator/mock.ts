@@ -3,6 +3,7 @@ import type {
   BoardConfig,
   BoardOutput,
   BoardResult,
+  BoardResultInput,
   BoardSummary,
   MemoryDoc,
   Orchestrator
@@ -27,6 +28,8 @@ export class MockOrchestrator implements Orchestrator {
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 
   async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
+
+  async writeResult(_boardId: BoardId, _result: BoardResultInput): Promise<void> {}
 
   async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
     return { present: false }

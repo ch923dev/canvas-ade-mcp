@@ -19,6 +19,7 @@ export type {
   BoardSummary,
   BoardOutput,
   BoardResult,
+  BoardResultInput,
   MemoryDoc
 } from './orchestrator/Orchestrator'
 export { MAX_OUTPUT_PAGE } from './constants'
