@@ -1,5 +1,6 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
+import { registerBoardStatesResource } from './boardStates'
 
 /**
  * Registers the read-only board observation resources. Available to BOTH tiers —
@@ -36,4 +37,6 @@ export function registerBoardResources(server: McpServer, orchestrator: Orchestr
       return { contents: [{ uri: uri.href, text: JSON.stringify({ id, status }) }] }
     }
   )
+
+  registerBoardStatesResource(server, orchestrator)
 }
