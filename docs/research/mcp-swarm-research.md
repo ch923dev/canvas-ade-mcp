@@ -10,6 +10,19 @@ Preserve it — it's the "why" for every locked choice.
 > synthesis. Sources cited inline. Workflow 1 (feature-level) lives in the Canvas ADE repo's
 > `docs/feature-proposals.md`.
 
+> 🔌 **Companion doc (2026-06-02):** [`mcp-client-connection-matrix.md`](mcp-client-connection-matrix.md)
+> — per-CLI wiring (Claude Code · Codex · Cursor · Gemini) for connecting an in-board agent to the
+> loopback server with a per-board bearer token. **Verdict: all four connect today, no proxy shim.**
+> De-risks roadmap Phase 3+.
+>
+> ⚠️ **Spec drift (2026-06-02):** parts of this doc cite the **stale 2025-03-26/06-18** spec. Current
+> stable = **2025-11-25**; a **2026-07-28 RC** makes the protocol **stateless** (`Mcp-Session-Id`
+> removed) and **deprecates Sampling**. Sampling-based judging is also unsupported by Claude Code →
+> pivot to a deterministic gate + a "judge board". Human-confirm → native Electron modal (MAIN owns the
+> UI), not client elicitation. **Host-header validation is mandatory** (DNS-rebind CVEs; a Browser
+> board previewing a hostile localhost page is the exact vector). Full deltas: parent-repo memory
+> `mcp-spec-state-2026-06`.
+
 ---
 
 ## Bottom line
