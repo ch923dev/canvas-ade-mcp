@@ -5,14 +5,14 @@ import { mintToken, startTestServer, type TestServer } from '../helpers/httpServ
 import type {
   BoardOutput,
   BoardResult,
-  MemoryDoc,
   BoardSummary,
+  MemoryDoc,
   Orchestrator
 } from '../../src/orchestrator/Orchestrator'
 import type { BoardId } from '../../src/types'
 
-/** Serves a fixed structured result for 'b-done', empty shell otherwise. */
-class ResultOrchestrator implements Orchestrator {
+/** Serves a project memory doc + a per-board summary for 'b-1'; empty otherwise. */
+class MemoryOrchestrator implements Orchestrator {
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }
@@ -29,30 +29,29 @@ class ResultOrchestrator implements Orchestrator {
   async boardOutput(): Promise<BoardOutput> {
     return { text: '', total: 0, returned: 0, droppedOlder: false }
   }
-  async boardResult(boardId: BoardId): Promise<BoardResult> {
-    return boardId === 'b-done'
-      ? { present: true, status: 'success', summary: 'done', refs: ['a.ts'] }
-      : { present: false }
+  async boardResult(): Promise<BoardResult> {
+    return { present: false }
   }
   async projectMemory(): Promise<MemoryDoc> {
-    return { present: false, text: '' }
+    return { present: true, text: '# Project memory' }
   }
-  async boardSummary(): Promise<MemoryDoc> {
-    return { present: false, text: '' }
+  async boardSummary(boardId: BoardId): Promise<MemoryDoc> {
+    return boardId === 'b-1'
+      ? { present: true, text: 'board 1 summary' }
+      : { present: false, text: '' }
   }
 }
 
-function parse(res: { contents: ReadonlyArray<{ uri?: unknown; text?: unknown }> }): BoardResult {
+function parse(res: { contents: ReadonlyArray<{ uri?: unknown; text?: unknown }> }): MemoryDoc {
   const text = res.contents.map((c) => ('text' in c ? c.text : '')).join('')
-  return JSON.parse(text as string) as BoardResult
+  return JSON.parse(text as string) as MemoryDoc
 }
 
-// The result resource read over real HTTP (transport + bearer auth + template routing).
-describe('canvas://board/{id}/result over real HTTP', () => {
+describe('canvas://memory + canvas://board/{id}/summary over real HTTP', () => {
   let ts: TestServer
 
   beforeAll(async () => {
-    ts = await startTestServer(new ResultOrchestrator())
+    ts = await startTestServer(new MemoryOrchestrator())
     mintToken(ts.tokens, 'tok-orch', { tier: 'orchestrator', boardId: 'bO' })
     mintToken(ts.tokens, 'tok-worker', { tier: 'worker', boardId: 'bW' })
   })
@@ -70,24 +69,31 @@ describe('canvas://board/{id}/result over real HTTP', () => {
     return client
   }
 
-  it('routes the templated id and returns the structured result', async () => {
+  it('serves the project memory index and a per-board summary', async () => {
     const client = await connect('tok-orch')
-    const out = parse(await client.readResource({ uri: 'canvas://board/b-done/result' }))
-    expect(out).toEqual({ present: true, status: 'success', summary: 'done', refs: ['a.ts'] })
+    expect(parse(await client.readResource({ uri: 'canvas://memory' }))).toEqual({
+      present: true,
+      text: '# Project memory'
+    })
+    expect(parse(await client.readResource({ uri: 'canvas://board/b-1/summary' }))).toEqual({
+      present: true,
+      text: 'board 1 summary'
+    })
     await client.close()
   })
 
-  it('returns the empty shell for a board with no recorded result', async () => {
+  it('gracefully empties a board with no summary', async () => {
     const client = await connect('tok-orch')
-    const out = parse(await client.readResource({ uri: 'canvas://board/b-new/result' }))
-    expect(out).toEqual({ present: false })
+    expect(parse(await client.readResource({ uri: 'canvas://board/ghost/summary' }))).toEqual({
+      present: false,
+      text: ''
+    })
     await client.close()
   })
 
-  it('is readable by the worker tier', async () => {
+  it('is readable by the worker tier (passive context)', async () => {
     const client = await connect('tok-worker')
-    const out = parse(await client.readResource({ uri: 'canvas://board/b-done/result' }))
-    expect(out.present).toBe(true)
+    expect(parse(await client.readResource({ uri: 'canvas://memory' })).present).toBe(true)
     await client.close()
   })
 })

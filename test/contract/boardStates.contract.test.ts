@@ -4,6 +4,7 @@ import { groupBoardsByStatus } from '../../src/resources/boardStates'
 import type {
   BoardOutput,
   BoardResult,
+  MemoryDoc,
   BoardSummary,
   Orchestrator
 } from '../../src/orchestrator/Orchestrator'
@@ -34,6 +35,12 @@ class MixedOrchestrator implements Orchestrator {
   }
   async boardResult(): Promise<BoardResult> {
     return { present: false }
+  }
+  async projectMemory(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
+  }
+  async boardSummary(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
   }
 }
 

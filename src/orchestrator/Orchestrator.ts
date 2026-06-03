@@ -55,6 +55,21 @@ export interface BoardResult {
 }
 
 /**
+ * A read-only slice of the project's persistent memory (T1.7) — the project index
+ * (`canvas://memory`) or a per-board summary (`canvas://board/{id}/summary`). It is
+ * produced by the sibling Brain/Memory engine's `.canvas/memory/`; 🔒 PASSIVE context
+ * only — it grants no action. When that subsystem hasn't written anything (it ships on
+ * a separate track), the doc is the empty shell `{ present: false, text: '' }` — the
+ * resource gracefully empties, never errors.
+ */
+export interface MemoryDoc {
+  /** Whether the memory engine has produced this document. */
+  present: boolean
+  /** The markdown content (empty when absent). */
+  text: string
+}
+
+/**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
  * lets canvas-ade-mcp build + test standalone, with no Electron dependency.
@@ -75,4 +90,14 @@ export interface Orchestrator {
    * `{ present: false }` until a result has been recorded (M4 `write_result`).
    */
   boardResult(boardId: BoardId): Promise<BoardResult>
+  /**
+   * Read the project memory index (T1.7, 🔒 read-only passive context). Empty shell
+   * when the memory engine is absent — graceful, never an error.
+   */
+  projectMemory(): Promise<MemoryDoc>
+  /**
+   * Read a board's memory summary (T1.7, 🔒 read-only passive context). Empty shell
+   * when absent.
+   */
+  boardSummary(boardId: BoardId): Promise<MemoryDoc>
 }

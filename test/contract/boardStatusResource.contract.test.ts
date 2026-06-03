@@ -3,6 +3,7 @@ import { connectInMemory } from '../helpers/inMemory'
 import type {
   BoardOutput,
   BoardResult,
+  MemoryDoc,
   BoardSummary,
   Orchestrator
 } from '../../src/orchestrator/Orchestrator'
@@ -28,6 +29,12 @@ class StatusOrchestrator implements Orchestrator {
   }
   async boardResult(): Promise<BoardResult> {
     return { present: false }
+  }
+  async projectMemory(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
+  }
+  async boardSummary(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
   }
 }
 

@@ -18,7 +18,8 @@ export type {
   Orchestrator,
   BoardSummary,
   BoardOutput,
-  BoardResult
+  BoardResult,
+  MemoryDoc
 } from './orchestrator/Orchestrator'
 export { MAX_OUTPUT_PAGE } from './constants'
 export type { Tier, Scope, AuthRow, BoardId } from './types'

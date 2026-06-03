@@ -4,6 +4,7 @@ import { MAX_OUTPUT_PAGE } from '../../src/constants'
 import type {
   BoardOutput,
   BoardResult,
+  MemoryDoc,
   BoardSummary,
   Orchestrator
 } from '../../src/orchestrator/Orchestrator'
@@ -48,6 +49,12 @@ class OutputOrchestrator implements Orchestrator {
   }
   async boardResult(): Promise<BoardResult> {
     return { present: false }
+  }
+  async projectMemory(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
+  }
+  async boardSummary(): Promise<MemoryDoc> {
+    return { present: false, text: '' }
   }
 }
 

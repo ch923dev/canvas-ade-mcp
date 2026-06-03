@@ -4,6 +4,7 @@ import { registerBoardStatesResource } from './boardStates'
 import { registerAttentionResource } from './attention'
 import { registerBoardOutputResource } from './output'
 import { registerBoardResultResource } from './result'
+import { registerMemoryResources } from './memory'
 
 /**
  * Registers the read-only board observation resources. Available to BOTH tiers —
@@ -45,4 +46,5 @@ export function registerBoardResources(server: McpServer, orchestrator: Orchestr
   registerAttentionResource(server, orchestrator)
   registerBoardOutputResource(server, orchestrator)
   registerBoardResultResource(server, orchestrator)
+  registerMemoryResources(server, orchestrator)
 }
