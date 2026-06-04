@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
+import type { BoardId } from '../../types'
+import type { SessionCtx } from '../factory'
 import { TOOL_RELAY_PROMPT } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
 
@@ -16,8 +18,22 @@ import { dispatchPromptSchema } from './promptSchema'
  * nonce, BLOCKS on a mandatory human confirm, and audits — then writes into the target's
  * PTY. This tool is the thin transport: validate non-empty inputs, forward to
  * {@link Orchestrator.relayPrompt}, surface a short ack.
+ *
+ * 🔒 Caller-identity binding (BUG-021 part 2): `sourceId` is caller-supplied and the cable
+ * (not the caller) is the only authorization the host checks, so ANY orchestrator-tier token
+ * could exploit ANY existing cable — fine while exactly one orchestrator token exists, a hole
+ * the moment multiple are minted. When the host designates a single command board via
+ * `commandBoardId`, this tool restricts `relay_prompt` to that one token-bound identity (the
+ * `ctx.boardId` is derived from the verified bearer token, never client input — same trust
+ * basis as `write_result`'s board binding). Left `undefined`, behaviour is unchanged (open to
+ * any orchestrator-tier caller) so existing single-token deployments keep working.
  */
-export function registerRelayPrompt(server: McpServer, orchestrator: Orchestrator): void {
+export function registerRelayPrompt(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  ctx: SessionCtx,
+  commandBoardId?: BoardId
+): void {
   server.registerTool(
     TOOL_RELAY_PROMPT,
     {
@@ -32,6 +48,17 @@ export function registerRelayPrompt(server: McpServer, orchestrator: Orchestrato
       }
     },
     async (args) => {
+      // 🔒 BUG-021: when a command board is designated, only that token-bound identity may
+      // relay — a second orchestrator token (bound to another board) can't exploit a cable
+      // it doesn't own. ctx.boardId comes from the verified token, so it can't be forged.
+      if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
+        return {
+          isError: true,
+          content: [
+            { type: 'text', text: 'relay_prompt: caller is not the designated command orchestrator' }
+          ]
+        }
+      }
       await orchestrator.relayPrompt(args.sourceId, args.targetId, args.prompt)
       return { content: [{ type: 'text', text: `relayed ${args.sourceId} → ${args.targetId}` }] }
     }

@@ -77,4 +77,43 @@ describe('relay_prompt tool (T4.6, agent-to-agent dispatch over a connector)', (
     expect(orch.relayed).toEqual([])
     await client.close()
   })
+
+  // 🔒 BUG-021 part 2 — caller-identity binding. When the host designates a command board,
+  // only the token bound to THAT board may relay (a second orchestrator token can't drive a
+  // cable it doesn't own). ctx.boardId is token-derived, so it can't be forged by the client.
+  it('🔒 with a command board set, the command orchestrator (matching boardId) CAN relay', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'app', 'app')
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'run the build' }
+    })
+    expect(res.isError).toBeFalsy()
+    expect(orch.relayed).toEqual([{ sourceId: 'A', targetId: 'B', text: 'run the build' }])
+    await client.close()
+  })
+
+  it('🔒 with a command board set, a DIFFERENT orchestrator token is rejected WITHOUT relaying', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'rogue-board', 'app')
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'exploit the A->B cable' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.relayed).toEqual([])
+    await client.close()
+  })
+
+  it('without a command board set, relay stays open to any orchestrator (back-compat)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'whoever')
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'still works' }
+    })
+    expect(res.isError).toBeFalsy()
+    expect(orch.relayed).toEqual([{ sourceId: 'A', targetId: 'B', text: 'still works' }])
+    await client.close()
+  })
 })
