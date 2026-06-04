@@ -3,7 +3,7 @@ import express, { type Express } from 'express'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
 import { MCP_PATH } from '../constants'
-import type { Tier } from '../types'
+import type { BoardId, Tier } from '../types'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { createVerifier } from '../auth/verifier'
 import type { TokenStore } from '../auth/tokens'
@@ -15,6 +15,13 @@ import { SessionManager } from './transport'
 export interface McpServerDeps {
   orchestrator: Orchestrator
   tokens: TokenStore
+  /**
+   * Optional single command-orchestrator board id (BUG-021). When set, `relay_prompt` is
+   * restricted to the token bound to this board, so a second orchestrator-tier token can't
+   * drive orchestration cables it doesn't own. Omit to keep the prior open-to-any-orchestrator
+   * behaviour (correct for a single-orchestrator-token deployment).
+   */
+  commandBoardId?: BoardId
 }
 
 export interface RunningMcpServer {
@@ -56,7 +63,7 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
   // with an explicit cap (MCP control messages are small; reject oversized bodies).
   app.use(MCP_PATH, express.json({ limit: '1mb' }))
 
-  const sessions = new SessionManager(new ServerFactory(deps.orchestrator))
+  const sessions = new SessionManager(new ServerFactory(deps.orchestrator, deps.commandBoardId))
 
   app.post(MCP_PATH, (req, res, next) => {
     sessions.handlePost(req, res, ctxFromAuth(req.auth)).catch(next)

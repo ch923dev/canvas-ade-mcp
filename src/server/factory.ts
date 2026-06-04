@@ -32,7 +32,16 @@ const SERVER_INFO = { name: 'canvas-ade-mcp', version: pkg.version }
  * register-all-then-gate-in-handler.
  */
 export class ServerFactory {
-  constructor(private readonly orchestrator: Orchestrator) {}
+  /**
+   * @param commandBoardId Optional single command-orchestrator board id (BUG-021). When set,
+   *   `relay_prompt` is restricted to that token-bound identity so a second orchestrator-tier
+   *   token can't drive cables it doesn't own. Left undefined → relay open to any orchestrator
+   *   (the prior single-token behaviour).
+   */
+  constructor(
+    private readonly orchestrator: Orchestrator,
+    private readonly commandBoardId?: BoardId
+  ) {}
 
   getServer(ctx: SessionCtx): McpServer {
     const server = new McpServer(SERVER_INFO)
@@ -59,7 +68,8 @@ export class ServerFactory {
       registerHandoffPrompt(server, this.orchestrator)
       registerAssignPrompt(server, this.orchestrator)
       registerInterrupt(server, this.orchestrator)
-      registerRelayPrompt(server, this.orchestrator)
+      // relay_prompt is bound to the designated command orchestrator when one is set (BUG-021).
+      registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
