@@ -57,7 +57,18 @@ describe('write_result tool (T4.4, first worker-tier write)', () => {
       arguments: { boardId: 'victim-board', status: 'failure' } as Record<string, unknown>
     })
     expect(orch.written).toHaveLength(1)
-    expect(orch.written[0].id).toBe('my-board')
+    expect(orch.written[0]!.id).toBe('my-board')
+    await client.close()
+  })
+
+  it('🔒 refuses to write when no board is bound to the session (empty ctx.boardId)', async () => {
+    const orch = new SpyOrchestrator()
+    // A token whose `extra.boardId` was missing/non-string yields ctx.boardId === ''.
+    // Writing to board '' would silently no-op or hit a sentinel — refuse instead.
+    const client = await connectInMemory('worker', orch, '')
+    const res = await client.callTool({ name: TOOL, arguments: { status: 'success' } })
+    expect(res.isError).toBe(true)
+    expect(orch.written).toHaveLength(0)
     await client.close()
   })
 

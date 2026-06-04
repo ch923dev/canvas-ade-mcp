@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import pkg from '../../package.json' with { type: 'json' }
 import type { BoardId, Scope, Tier } from '../types'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
@@ -20,7 +21,9 @@ export interface SessionCtx {
   boardId: BoardId
 }
 
-const SERVER_INFO = { name: 'canvas-ade-mcp', version: '0.0.0' }
+// Version is sourced from package.json so the handshake never drifts from the
+// published version (clients log/compat-check serverInfo.version).
+const SERVER_INFO = { name: 'canvas-ade-mcp', version: pkg.version }
 
 /**
  * Builds a fresh McpServer per session, registering ONLY the tools the session's

@@ -7,14 +7,16 @@ import type {
   BoardOutput,
   BoardResult,
   MemoryDoc,
-  BoardSummary,
-  Orchestrator
+  BoardSummary
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /** Tail-anchored paging over a fixed buffer — the real app accessor's contract. */
-class OutputOrchestrator implements Orchestrator {
-  constructor(private readonly clean: string) {}
+class OutputOrchestrator extends MockOrchestrator {
+  constructor(private readonly clean: string) {
+    super()
+  }
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }

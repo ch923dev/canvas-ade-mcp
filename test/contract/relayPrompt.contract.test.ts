@@ -65,4 +65,16 @@ describe('relay_prompt tool (T4.6, agent-to-agent dispatch over a connector)', (
     expect(orch.relayed).toEqual([])
     await client.close()
   })
+
+  it('🔒 rejects a prompt with an embedded Ctrl-C (\\x03) WITHOUT relaying', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'go' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.relayed).toEqual([])
+    await client.close()
+  })
 })

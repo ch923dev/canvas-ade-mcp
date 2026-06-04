@@ -61,4 +61,16 @@ describe('assign_prompt tool (T4.4, fire-and-forget dispatch write)', () => {
     expect(orch.dispatched).toEqual([])
     await client.close()
   })
+
+  it('🔒 rejects a prompt with an embedded CR (line-injection) WITHOUT dispatching', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'board-7', prompt: 'ls\rrm -rf ~' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.dispatched).toEqual([])
+    await client.close()
+  })
 })

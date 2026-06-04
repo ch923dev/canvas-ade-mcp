@@ -6,13 +6,13 @@ import type {
   BoardOutput,
   BoardResult,
   MemoryDoc,
-  BoardSummary,
-  Orchestrator
+  BoardSummary
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator whose board status varies by id — proves the template var routes. */
-class StatusOrchestrator implements Orchestrator {
+class StatusOrchestrator extends MockOrchestrator {
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }

@@ -5,9 +5,9 @@ import type {
   BoardOutput,
   BoardResult,
   MemoryDoc,
-  BoardSummary,
-  Orchestrator
+  BoardSummary
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /**
@@ -16,8 +16,10 @@ import type { BoardId } from '../../src/types'
  * Lets the contract layer assert the resource (a) routes the templated id, (b)
  * threads the `?cursor` query var, and (c) hard-caps each page at MAX_OUTPUT_PAGE.
  */
-class OutputOrchestrator implements Orchestrator {
-  constructor(private readonly buffers: Record<string, string>) {}
+class OutputOrchestrator extends MockOrchestrator {
+  constructor(private readonly buffers: Record<string, string>) {
+    super()
+  }
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }
@@ -104,6 +106,37 @@ describe('canvas://board/{id}/output resource', () => {
     const out = JSON.parse(readText(res.contents)) as BoardOutput
     expect(out.text.length).toBe(MAX_OUTPUT_PAGE)
     expect(out.returned).toBe(MAX_OUTPUT_PAGE)
+    await client.close()
+  })
+
+  it('over-return keeps the NEWEST page (tail), not the oldest, and advances the cursor', async () => {
+    const older = 'A'.repeat(10_000)
+    const newer = 'B'.repeat(MAX_OUTPUT_PAGE)
+    const buf = older + newer // > MAX_OUTPUT_PAGE, head=A's (older) tail=B's (newer)
+    // A rogue host that ignores the cap AND returns no nextCursor on a tail read.
+    class RogueTail extends OutputOrchestrator {
+      override async boardOutput(): Promise<BoardOutput> {
+        return { text: buf, total: buf.length, returned: buf.length, droppedOlder: false }
+      }
+    }
+    const client = await connectInMemory('orchestrator', new RogueTail({}))
+    const res = await client.readResource({ uri: 'canvas://board/b-1/output' })
+    const out = JSON.parse(readText(res.contents)) as BoardOutput
+    expect(out.text.length).toBe(MAX_OUTPUT_PAGE)
+    // The kept page must be the NEWEST chars (the B-tail), never the A-head.
+    expect(out.text).toBe(buf.slice(-MAX_OUTPUT_PAGE))
+    expect(out.text.startsWith('B')).toBe(true)
+    expect(out.returned).toBe(MAX_OUTPUT_PAGE)
+    // We dropped older chars → more remains to page → the cursor must advance.
+    expect(out.nextCursor).toBe(MAX_OUTPUT_PAGE)
+    await client.close()
+  })
+
+  it('rejects a malformed cursor instead of silently re-serving the tail', async () => {
+    const client = await connectInMemory('orchestrator', new OutputOrchestrator({ 'b-1': 'hello' }))
+    await expect(
+      client.readResource({ uri: 'canvas://board/b-1/output?cursor=abc' })
+    ).rejects.toThrow()
     await client.close()
   })
 

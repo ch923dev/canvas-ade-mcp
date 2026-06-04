@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_RELAY_PROMPT } from '../../constants'
+import { dispatchPromptSchema } from './promptSchema'
 
 /**
  * Register the `relay_prompt` agent-to-agent DISPATCH tool (T4.6, the M4 gate). A dispatch
@@ -27,7 +28,7 @@ export function registerRelayPrompt(server: McpServer, orchestrator: Orchestrato
       inputSchema: {
         sourceId: z.string().min(1),
         targetId: z.string().min(1),
-        prompt: z.string().min(1)
+        prompt: dispatchPromptSchema
       }
     },
     async (args) => {

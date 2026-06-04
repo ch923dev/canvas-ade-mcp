@@ -6,13 +6,13 @@ import type {
   BoardOutput,
   BoardResult,
   MemoryDoc,
-  BoardSummary,
-  Orchestrator
+  BoardSummary
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /** Serves a fixed structured result for 'b-done', empty shell otherwise. */
-class ResultOrchestrator implements Orchestrator {
+class ResultOrchestrator extends MockOrchestrator {
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }

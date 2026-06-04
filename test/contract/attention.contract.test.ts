@@ -5,13 +5,13 @@ import type {
   BoardOutput,
   BoardResult,
   MemoryDoc,
-  BoardSummary,
-  Orchestrator
+  BoardSummary
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator returning a mix of attention + non-attention boards. */
-class MixedOrchestrator implements Orchestrator {
+class MixedOrchestrator extends MockOrchestrator {
   async listBoards(): Promise<BoardSummary[]> {
     return [
       { id: 't1', type: 'terminal', title: 'Run', status: 'running' },

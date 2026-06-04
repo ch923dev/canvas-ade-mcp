@@ -71,11 +71,16 @@ export class SessionManager {
     await transport.handleRequest(req, res)
   }
 
-  /** Tear down every live session (called on app quit). */
+  /**
+   * Tear down every live session (called on app quit). Uses `allSettled` so one
+   * transport whose `close()` rejects can't short-circuit the loop and leak the
+   * remaining sessions; the map is always cleared.
+   */
   async closeAll(): Promise<void> {
-    for (const transport of this.transports.values()) {
-      await transport.close()
+    try {
+      await Promise.allSettled([...this.transports.values()].map((t) => t.close()))
+    } finally {
+      this.transports.clear()
     }
-    this.transports.clear()
   }
 }

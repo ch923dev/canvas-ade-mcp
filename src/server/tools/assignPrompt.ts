@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_ASSIGN_PROMPT } from '../../constants'
+import { dispatchPromptSchema } from './promptSchema'
 
 /**
  * Register the `assign_prompt` DISPATCH tool (T4.4) — the FIRE-AND-FORGET sibling of
@@ -27,7 +28,7 @@ export function registerAssignPrompt(server: McpServer, orchestrator: Orchestrat
         'Terminal targets only; requires human confirmation. boardId + prompt are required.',
       inputSchema: {
         boardId: z.string().min(1),
-        prompt: z.string().min(1)
+        prompt: dispatchPromptSchema
       }
     },
     async (args) => {

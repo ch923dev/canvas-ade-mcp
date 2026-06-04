@@ -23,15 +23,35 @@ async function readPage(
 ): Promise<{ contents: Array<{ uri: string; text: string }> }> {
   const id = first(variables.id)
   if (!id) throw new Error('canvas://board/{id}/output: missing board id')
+  // A cursor, when supplied, must be a non-negative integer (chars-from-end). A
+  // malformed value is NOT silently coerced to "newest tail" — that would loop an
+  // agent forever (it pages with garbage, keeps getting page 1). Fail loud instead.
   const rawCursor = first(variables.cursor)
-  const cursor = rawCursor !== undefined ? Number(rawCursor) : undefined
-  const opts =
-    cursor !== undefined && Number.isFinite(cursor) && cursor >= 0 ? { cursor } : undefined
+  let opts: { cursor: number } | undefined
+  if (rawCursor !== undefined) {
+    const cursor = Number(rawCursor)
+    if (!Number.isInteger(cursor) || cursor < 0) {
+      throw new Error(`canvas://board/${id}/output: invalid cursor "${rawCursor}"`)
+    }
+    opts = { cursor }
+  }
 
   const out = await orchestrator.boardOutput(id, opts)
-  // 🔒 never emit more than one page, whatever the host returned.
-  const text = out.text.length > MAX_OUTPUT_PAGE ? out.text.slice(0, MAX_OUTPUT_PAGE) : out.text
-  const page: BoardOutput = { ...out, text, returned: text.length }
+  // 🔒 never emit more than one page, whatever the host returned. Keep the NEWEST
+  // MAX_OUTPUT_PAGE chars (the contract is tail-anchored — `text` is the newest
+  // slice), NOT the oldest. When we have to drop, the dropped chars are OLDER and
+  // remain unconsumed, so the cursor MUST advance by exactly what we kept (= the
+  // dropped older content is still reachable on the next, older page).
+  let page: BoardOutput = out
+  if (out.text.length > MAX_OUTPUT_PAGE) {
+    const text = out.text.slice(-MAX_OUTPUT_PAGE)
+    page = {
+      ...out,
+      text,
+      returned: text.length,
+      nextCursor: (opts?.cursor ?? 0) + text.length
+    }
+  }
   return { contents: [{ uri: uriHref, text: JSON.stringify(page) }] }
 }
 

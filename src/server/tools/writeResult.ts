@@ -34,6 +34,16 @@ export function registerWriteResult(
       }
     },
     async (args) => {
+      // 🔒 ctx.boardId is derived from the token (no client input). If the token
+      // carried no boardId it falls back to '' — writing to board '' would silently
+      // no-op or hit a sentinel while the agent believes its result was recorded.
+      // Refuse loudly instead of writing to an unbound board.
+      if (!ctx.boardId) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: 'write_result: no board bound to this session' }]
+        }
+      }
       await orchestrator.writeResult(ctx.boardId, {
         status: args.status,
         summary: args.summary,

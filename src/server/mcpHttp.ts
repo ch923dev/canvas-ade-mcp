@@ -41,15 +41,20 @@ export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
  */
 export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningMcpServer> {
   const app = express()
-  app.use(express.json())
 
-  // DNS-rebinding defence in two layers: Host (always required) THEN Origin.
+  // DNS-rebinding defence in two layers: Host (always required) THEN Origin. These
+  // run BEFORE any body parsing so a non-loopback request is 403'd outright and its
+  // body is never parsed (no pre-auth parse / memory pressure).
   app.use(hostGuard())
   let allowedOrigins: readonly string[] = []
   app.use(originGuard(() => allowedOrigins))
 
   const verifier = createVerifier(deps.tokens)
   app.use(MCP_PATH, requireBearerAuth({ verifier }))
+
+  // Parse the JSON body only on /mcp, only after Host/Origin/bearer have passed, and
+  // with an explicit cap (MCP control messages are small; reject oversized bodies).
+  app.use(MCP_PATH, express.json({ limit: '1mb' }))
 
   const sessions = new SessionManager(new ServerFactory(deps.orchestrator))
 

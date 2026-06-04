@@ -1,7 +1,8 @@
+import { isIP } from 'node:net'
 import type { RequestHandler } from 'express'
 
-/** The only Host values a loopback-bound MCP server should ever answer for. */
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+/** Exact loopback host spellings (the common cases; IP forms are checked below too). */
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '0:0:0:0:0:0:0:1'])
 
 /**
  * Extract the hostname from a `Host` header value, dropping an optional `:port`.
@@ -31,7 +32,13 @@ function parseHostname(host: string): string {
  */
 export function isLoopbackHost(host: string): boolean {
   if (host === '') return false
-  return LOOPBACK_HOSTS.has(parseHostname(host).toLowerCase())
+  const h = parseHostname(host).toLowerCase()
+  if (LOOPBACK_HOSTS.has(h)) return true
+  // The whole 127.0.0.0/8 block is loopback — accept any 127.x.x.x (a browser or
+  // CLI may use a non-.1 address). `isIP` confirms it is a well-formed IPv4 literal
+  // so a name like `127.evil.com` can't slip through the prefix check.
+  if (isIP(h) === 4 && h.startsWith('127.')) return true
+  return false
 }
 
 /**

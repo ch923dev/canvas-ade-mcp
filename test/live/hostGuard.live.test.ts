@@ -6,7 +6,11 @@ import { startTestServer, type TestServer } from '../helpers/httpServer'
 // uses a raw node:http request to forge it. Asserts the guard fires BEFORE auth:
 // a spoofed Host is 403'd outright, while a loopback Host falls through to the
 // bearer check (401, not 403) — proving the guard rejects only on bad Host.
-function rawPost(url: string, host: string): Promise<number> {
+function rawPost(
+  url: string,
+  host: string,
+  body: string = JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1 })
+): Promise<number> {
   const u = new URL(url)
   return new Promise((resolve, reject) => {
     const req = request(
@@ -23,7 +27,7 @@ function rawPost(url: string, host: string): Promise<number> {
       }
     )
     req.on('error', reject)
-    req.end(JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1 }))
+    req.end(body)
   })
 }
 
@@ -51,5 +55,12 @@ describe('host guard (real HTTP)', () => {
     const status = await rawPost(ts.url, `127.0.0.1:${u.port}`)
     expect(status).not.toBe(403)
     expect(status).toBe(401) // no bearer token → auth rejects, host guard did not
+  })
+
+  it('host guard runs BEFORE body parsing: spoofed Host + malformed JSON -> 403', async () => {
+    // If express.json() parsed first, a malformed body would 400 before the guard.
+    // The guard must reject the bad Host outright (no pre-auth body parsing).
+    const status = await rawPost(ts.url, 'evil.example', '{ not: valid json')
+    expect(status).toBe(403)
   })
 })

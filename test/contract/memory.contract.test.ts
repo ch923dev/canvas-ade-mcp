@@ -4,17 +4,19 @@ import type {
   BoardOutput,
   BoardResult,
   BoardSummary,
-  MemoryDoc,
-  Orchestrator
+  MemoryDoc
 } from '../../src/orchestrator/Orchestrator'
+import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 
 /** An orchestrator serving fixed memory docs (empty shell when absent). */
-class MemoryOrchestrator implements Orchestrator {
+class MemoryOrchestrator extends MockOrchestrator {
   constructor(
     private readonly project: MemoryDoc,
     private readonly summaries: Record<string, MemoryDoc>
-  ) {}
+  ) {
+    super()
+  }
   async listBoards(): Promise<BoardSummary[]> {
     return []
   }

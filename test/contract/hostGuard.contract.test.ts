@@ -12,7 +12,11 @@ describe('isLoopbackHost', () => {
       '::1',
       '[::1]',
       '[::1]:5173',
-      'LOCALHOST' // case-insensitive
+      'LOCALHOST', // case-insensitive
+      '127.0.0.5', // anywhere in the 127.0.0.0/8 loopback block
+      '127.1.2.3:8080',
+      '0:0:0:0:0:0:0:1', // fully-expanded ::1
+      '[0:0:0:0:0:0:0:1]:443'
     ]) {
       expect(isLoopbackHost(h), h).toBe(true)
     }
@@ -27,6 +31,9 @@ describe('isLoopbackHost', () => {
       '0.0.0.0',
       '169.254.169.254', // cloud metadata
       '10.0.0.5',
+      '128.0.0.1', // just outside 127/8
+      '1.127.0.0', // 127. not at the front
+      '::2', // IPv6 non-loopback
       ''
     ]) {
       expect(isLoopbackHost(h), h).toBe(false)

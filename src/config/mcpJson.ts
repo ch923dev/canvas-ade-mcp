@@ -28,9 +28,16 @@ export function buildMcpJson(port: number, token: string): McpJson {
   }
 }
 
-/** Write .mcp.json into a board's worktree dir. Returns the written file path. */
+/**
+ * Write .mcp.json into a board's worktree dir. Returns the written file path.
+ * Written owner-only (0600): the file embeds a plaintext bearer token, so it must
+ * not be world-readable on a multi-user box. (POSIX mode is a no-op on Windows.)
+ */
 export function writeMcpJson(dir: string, port: number, token: string): string {
   const file = join(dir, '.mcp.json')
-  writeFileSync(file, JSON.stringify(buildMcpJson(port, token), null, 2) + '\n', 'utf8')
+  writeFileSync(file, JSON.stringify(buildMcpJson(port, token), null, 2) + '\n', {
+    encoding: 'utf8',
+    mode: 0o600
+  })
   return file
 }

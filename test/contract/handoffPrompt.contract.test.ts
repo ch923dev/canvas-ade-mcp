@@ -65,4 +65,16 @@ describe('handoff_prompt tool (T4.3, dispatch write)', () => {
     expect(orch.handedOff).toEqual([])
     await client.close()
   })
+
+  it('🔒 rejects a prompt with an embedded newline (line-injection) WITHOUT dispatching', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'board-7', prompt: 'build\nrm -rf ~' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.handedOff).toEqual([])
+    await client.close()
+  })
 })
