@@ -13,6 +13,7 @@ import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
 import { registerInterrupt } from './tools/interrupt'
 import { registerRelayPrompt } from './tools/relayPrompt'
+import { registerBarrierTools } from './tools/barriers'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -70,6 +71,9 @@ export class ServerFactory {
       registerInterrupt(server, this.orchestrator)
       // relay_prompt is bound to the designated command orchestrator when one is set (BUG-021).
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // M5 barrier tools — orchestrator-tier blocking waits (read-only; no PTY write/confirm/audit).
+      // (dispose is collected when getServer's return shape changes in the session-teardown task.)
+      registerBarrierTools(server, this.orchestrator)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
