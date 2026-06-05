@@ -31,7 +31,8 @@
     "test": "vitest run --project contract",
     "test:live": "vitest run --project live",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "license": "MIT",
   "dependencies": {
