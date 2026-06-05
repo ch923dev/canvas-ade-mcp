@@ -1,9 +1,10 @@
 name: publish
 
-# Publishes @ch923dev/canvas-ade-mcp to GitHub Packages on a version tag (v*),
-# or manually via workflow_dispatch. Uses the repo's own GITHUB_TOKEN — a repo
-# that publishes a package is automatically granted admin on that package, so no
-# PAT is needed to PUBLISH (consuming from another repo is a separate grant).
+# Publishes @ch923dev/canvas-ade-mcp to the PUBLIC npmjs registry on a version tag
+# (v*), or manually via workflow_dispatch. Scoped packages publish public via
+# publishConfig.access=public. Auth uses an npm automation token in secrets.NPM_TOKEN
+# (npmjs → Access Tokens → Automation). No GitHub Packages / GITHUB_TOKEN needed —
+# anyone can `npm install` this with no auth.
 on:
   push:
     tags: ['v*']
@@ -11,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -21,10 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          # Writes ~/.npmrc with the scoped registry + token auth so pnpm publish
-          # routes to GitHub Packages and authenticates with NODE_AUTH_TOKEN.
-          registry-url: https://npm.pkg.github.com
-          scope: '@ch923dev'
+          # Writes ~/.npmrc pointing the default registry at npmjs and wiring
+          # NODE_AUTH_TOKEN so pnpm publish authenticates as the token owner.
+          registry-url: https://registry.npmjs.org
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -32,4 +31,4 @@ jobs:
       - run: pnpm build
       - run: pnpm publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

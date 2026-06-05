@@ -9,7 +9,7 @@
     "url": "git+https://github.com/ch923dev/canvas-ade-mcp.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
