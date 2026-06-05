@@ -3,7 +3,10 @@ import { SessionManager } from '../../src/server/transport'
 import type { ServerFactory } from '../../src/server/factory'
 
 /** Reach into the private transport map to inject fakes (no real HTTP needed). */
-function injectTransports(sm: SessionManager, fakes: Record<string, { close(): Promise<void> }>): void {
+function injectTransports(
+  sm: SessionManager,
+  fakes: Record<string, { close(): Promise<void> }>
+): void {
   const map = (sm as unknown as { transports: Map<string, unknown> }).transports
   for (const [id, t] of Object.entries(fakes)) map.set(id, t)
 }
