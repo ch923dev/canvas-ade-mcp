@@ -1,8 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
-import { ATTENTION_BUCKETS } from '../resources/attention'
-
-const ATTENTION_URI = 'canvas://attention'
+import { ATTENTION_BUCKETS, ATTENTION_URI } from '../resources/attention'
 
 export interface AttentionNotifier {
   /** Unsubscribe from the orchestrator status stream (called on session close). */
