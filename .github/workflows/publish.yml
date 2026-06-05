@@ -1,6 +1,6 @@
 name: publish
 
-# Publishes @ch923dev/canvas-ade-mcp to the PUBLIC npmjs registry on a version tag
+# Publishes @expanse-ade/mcp to the PUBLIC npmjs registry on a version tag
 # (v*), or manually via workflow_dispatch. Scoped packages publish public via
 # publishConfig.access=public. Auth uses an npm automation token in secrets.NPM_TOKEN
 # (npmjs → Access Tokens → Automation). No GitHub Packages / GITHUB_TOKEN needed —
