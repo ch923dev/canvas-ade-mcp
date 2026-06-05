@@ -16,6 +16,8 @@ function rpcError(code: number, message: string): unknown {
  */
 export class SessionManager {
   private readonly transports = new Map<string, StreamableHTTPServerTransport>()
+  /** Per-session teardown (M5 notifier unsubscribe + in-flight barrier cancel). */
+  private readonly disposers = new Map<string, () => void>()
 
   constructor(private readonly factory: ServerFactory) {}
 
@@ -40,18 +42,23 @@ export class SessionManager {
       return
     }
 
+    const { server, dispose } = this.factory.getServer(ctx)
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => {
         this.transports.set(id, transport)
+        this.disposers.set(id, dispose)
       }
     })
     transport.onclose = () => {
       const id = transport.sessionId
-      if (id !== undefined) this.transports.delete(id)
+      if (id !== undefined) {
+        this.transports.delete(id)
+        this.disposers.get(id)?.()
+        this.disposers.delete(id)
+      }
     }
 
-    const server = this.factory.getServer(ctx)
     await server.connect(transport)
     await transport.handleRequest(req, res, req.body)
   }
@@ -80,6 +87,14 @@ export class SessionManager {
     try {
       await Promise.allSettled([...this.transports.values()].map((t) => t.close()))
     } finally {
+      for (const dispose of this.disposers.values()) {
+        try {
+          dispose()
+        } catch {
+          // a teardown throw must not abort the rest
+        }
+      }
+      this.disposers.clear()
       this.transports.clear()
     }
   }

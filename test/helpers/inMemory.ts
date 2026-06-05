@@ -19,7 +19,7 @@ export async function connectInMemory(
   commandBoardId?: string
 ): Promise<Client> {
   const factory = new ServerFactory(orchestrator, commandBoardId)
-  const server = factory.getServer({ tier, scopes: [], boardId })
+  const { server } = factory.getServer({ tier, scopes: [], boardId })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'contract-test', version: '0.0.0' })
   await server.connect(serverTransport)
