@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import { EmittingOrchestrator } from '../helpers/emittingOrchestrator'
-import { TOOL_WAIT_FOR_IDLE, TOOL_WAIT_FOR_ALL } from '../../src/constants'
+import { resolveBarrierTimeout } from '../../src/server/tools/barriers'
+import {
+  TOOL_WAIT_FOR_IDLE,
+  TOOL_WAIT_FOR_ALL,
+  DEFAULT_BARRIER_TIMEOUT_MS
+} from '../../src/constants'
 
 function readText(content: unknown): string {
   return (content as Array<{ text?: string }>).map((c) => c.text ?? '').join('')
@@ -50,7 +55,7 @@ describe('barrier tools (M5, orchestrator-tier)', () => {
     const client = await connectInMemory('orchestrator', orch)
     const res = await client.callTool({
       name: TOOL_WAIT_FOR_ALL,
-      arguments: { boardIds: ['a', 'b'], timeoutMs: 0 }
+      arguments: { boardIds: ['a', 'b'] }
     })
     expect(JSON.parse(readText(res.content))).toEqual({
       boards: [
@@ -58,6 +63,28 @@ describe('barrier tools (M5, orchestrator-tier)', () => {
         { id: 'b', status: 'blocked' }
       ],
       allIdle: false
+    })
+    await client.close()
+  })
+
+  it('wait_for_all reports allIdle true and passes through per-board results', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.boards = [
+      { id: 'a', type: 'terminal', title: 'A', status: 'idle' },
+      { id: 'b', type: 'terminal', title: 'B', status: 'idle' }
+    ]
+    orch.setResult('a', { present: true, status: 'success' })
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL_WAIT_FOR_ALL,
+      arguments: { boardIds: ['a', 'b'], timeoutMs: 0 }
+    })
+    expect(JSON.parse(readText(res.content))).toEqual({
+      boards: [
+        { id: 'a', status: 'idle', result: { present: true, status: 'success' } },
+        { id: 'b', status: 'idle' }
+      ],
+      allIdle: true
     })
     await client.close()
   })
@@ -82,5 +109,38 @@ describe('barrier tools (M5, orchestrator-tier)', () => {
     expect(a.isError).toBe(true)
     expect(b.isError).toBe(true)
     await client.close()
+  })
+})
+
+describe('resolveBarrierTimeout', () => {
+  const KEY = 'CANVAS_ADE_BARRIER_TIMEOUT_MS'
+  const original = process.env[KEY]
+  afterEach(() => {
+    if (original === undefined) delete process.env[KEY]
+    else process.env[KEY] = original
+  })
+
+  it('an explicit arg wins (even 0 / negative, which opt out downstream)', () => {
+    process.env[KEY] = '5000'
+    expect(resolveBarrierTimeout(123)).toBe(123)
+    expect(resolveBarrierTimeout(0)).toBe(0)
+    expect(resolveBarrierTimeout(-1)).toBe(-1)
+  })
+
+  it('falls back to a valid env override when no arg is given', () => {
+    process.env[KEY] = '5000'
+    expect(resolveBarrierTimeout()).toBe(5000)
+  })
+
+  it('ignores a non-positive / non-finite / unparseable env and uses the default', () => {
+    for (const bad of ['0', '-10', 'abc', 'Infinity', '']) {
+      process.env[KEY] = bad
+      expect(resolveBarrierTimeout()).toBe(DEFAULT_BARRIER_TIMEOUT_MS)
+    }
+  })
+
+  it('uses the default when neither arg nor env is set', () => {
+    delete process.env[KEY]
+    expect(resolveBarrierTimeout()).toBe(DEFAULT_BARRIER_TIMEOUT_MS)
   })
 })
