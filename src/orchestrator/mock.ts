@@ -4,6 +4,7 @@ import type {
   BoardOutput,
   BoardResult,
   BoardResultInput,
+  BoardStatusChange,
   BoardSummary,
   MemoryDoc,
   Orchestrator
@@ -61,5 +62,26 @@ export class MockOrchestrator implements Orchestrator {
 
   async boardSummary(_boardId: BoardId): Promise<MemoryDoc> {
     return { present: false, text: '' }
+  }
+
+  /** @internal subscribers for the M5 status stream. */
+  private readonly statusListeners = new Set<(change: BoardStatusChange) => void>()
+
+  subscribeStatus(listener: (change: BoardStatusChange) => void): () => void {
+    this.statusListeners.add(listener)
+    return () => {
+      this.statusListeners.delete(listener)
+    }
+  }
+
+  /** Test seam: drive a status change through the subscription fan-out. */
+  __emitStatus(change: BoardStatusChange): void {
+    for (const cb of this.statusListeners) {
+      try {
+        cb(change)
+      } catch {
+        // isolate a throwing listener (same discipline as the app-side fan-out)
+      }
+    }
   }
 }

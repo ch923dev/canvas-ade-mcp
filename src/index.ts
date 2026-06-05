@@ -16,6 +16,7 @@ export type { McpJson } from './config/mcpJson'
 export { MockOrchestrator } from './orchestrator/mock'
 export type {
   Orchestrator,
+  BoardStatusChange,
   BoardSummary,
   BoardOutput,
   BoardResult,

@@ -55,6 +55,18 @@ export interface BoardResult {
 }
 
 /**
+ * A coarse per-board status change (M5 event-driven attention). `status` is a status
+ * bucket value (`idle`/`running`/`awaiting-review`/`blocked`/`failed`/`static`) or
+ * `'gone'` when the board left the canvas. `result` is attached by the host when the
+ * board settles to `idle` and a `write_result` exists (so a barrier can return it).
+ */
+export interface BoardStatusChange {
+  id: BoardId
+  status: string
+  result?: BoardResult
+}
+
+/**
  * The fields a worker may record for its OWN board via `write_result` (T4.4) — a verdict,
  * a one-line summary, and structured references (NOT raw logs). All optional. The host
  * stamps `present: true` + `at` and binds the board id to the caller's token, producing
@@ -169,4 +181,11 @@ export interface Orchestrator {
    * when absent.
    */
   boardSummary(boardId: BoardId): Promise<MemoryDoc>
+  /**
+   * Subscribe to per-board coarse status changes (M5). MAIN forwards
+   * `boardRegistry.ts`'s `subscribeBoardStatus`, attaching the last result when a board
+   * settles to `idle`. Returns an unsubscribe fn. Barriers + the attention notifier wake
+   * on this instead of polling. SYNCHRONOUS (returns the unsubscribe directly, not a Promise).
+   */
+  subscribeStatus(listener: (change: BoardStatusChange) => void): () => void
 }
