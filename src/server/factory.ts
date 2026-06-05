@@ -13,6 +13,9 @@ import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
 import { registerInterrupt } from './tools/interrupt'
 import { registerRelayPrompt } from './tools/relayPrompt'
+import { registerBarrierTools } from './tools/barriers'
+import { installResourceSubscriptions } from './resourceSubscriptions'
+import { createAttentionNotifier } from './attentionNotifier'
 
 /** Per-session context, derived from the validated bearer token. */
 export interface SessionCtx {
@@ -43,8 +46,9 @@ export class ServerFactory {
     private readonly commandBoardId?: BoardId
   ) {}
 
-  getServer(ctx: SessionCtx): McpServer {
+  getServer(ctx: SessionCtx): { server: McpServer; dispose: () => void } {
     const server = new McpServer(SERVER_INFO)
+    const disposers: Array<() => void> = []
 
     // ping — both tiers.
     server.registerTool(TOOL_PING, { description: 'Health check. Returns "pong".' }, async () => ({
@@ -70,6 +74,8 @@ export class ServerFactory {
       registerInterrupt(server, this.orchestrator)
       // relay_prompt is bound to the designated command orchestrator when one is set (BUG-021).
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
+      disposers.push(registerBarrierTools(server, this.orchestrator))
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
@@ -80,6 +86,21 @@ export class ServerFactory {
     registerBoardResources(server, this.orchestrator)
     registerPrompts(server)
 
-    return server
+    // M5 attention push (both tiers — observation is safe). Subscribe wiring MUST precede
+    // connect (registerCapabilities is connect-gated); getServer always runs before connect.
+    const subs = installResourceSubscriptions(server)
+    const notifier = createAttentionNotifier({
+      server,
+      orchestrator: this.orchestrator,
+      isSubscribed: subs.isSubscribed
+    })
+    disposers.push(() => notifier.dispose())
+
+    return {
+      server,
+      dispose: () => {
+        for (const d of disposers) d()
+      }
+    }
   }
 }

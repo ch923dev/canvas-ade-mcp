@@ -1,6 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { BoardSummary, Orchestrator } from '../orchestrator/Orchestrator'
 
+/** The canonical URI of the read-only attention resource (M5 notifier pushes updates here). */
+export const ATTENTION_URI = 'canvas://attention'
+
 /**
  * Status buckets that mean "a human's attention is needed": a worker waiting on a
  * review/decision, blocked on a permission prompt, or failed. (`running`/`idle`/
@@ -28,7 +31,7 @@ export function selectAttention(boards: BoardSummary[]): BoardSummary[] {
 export function registerAttentionResource(server: McpServer, orchestrator: Orchestrator): void {
   server.registerResource(
     'attention',
-    'canvas://attention',
+    ATTENTION_URI,
     {
       description: 'Boards needing a human (blocked / awaiting-review / failed).',
       mimeType: 'application/json'

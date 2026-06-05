@@ -1,6 +1,6 @@
 {
   "name": "@ch923dev/canvas-ade-mcp",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "packageManager": "pnpm@9.15.9",
   "description": "MCP server layer for Canvas ADE \u00e2\u20ac\u201d lets AI agents in Terminal boards orchestrate the canvas (command board / swarm).",
   "type": "module",
@@ -31,7 +31,8 @@
     "test": "vitest run --project contract",
     "test:live": "vitest run --project live",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "license": "MIT",
   "dependencies": {

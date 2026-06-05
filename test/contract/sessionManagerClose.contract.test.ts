@@ -3,7 +3,10 @@ import { SessionManager } from '../../src/server/transport'
 import type { ServerFactory } from '../../src/server/factory'
 
 /** Reach into the private transport map to inject fakes (no real HTTP needed). */
-function injectTransports(sm: SessionManager, fakes: Record<string, { close(): Promise<void> }>): void {
+function injectTransports(
+  sm: SessionManager,
+  fakes: Record<string, { close(): Promise<void> }>
+): void {
   const map = (sm as unknown as { transports: Map<string, unknown> }).transports
   for (const [id, t] of Object.entries(fakes)) map.set(id, t)
 }
@@ -32,5 +35,16 @@ describe('SessionManager.closeAll', () => {
     expect(closed.sort()).toEqual(['a', 'b'])
     // The map is cleared regardless.
     expect((sm as unknown as { transports: Map<string, unknown> }).transports.size).toBe(0)
+  })
+
+  it('runs every session disposer on closeAll (and clears them)', async () => {
+    const sm = new SessionManager({} as ServerFactory)
+    const disposed: string[] = []
+    const map = (sm as unknown as { disposers: Map<string, () => void> }).disposers
+    map.set('a', () => disposed.push('a'))
+    map.set('b', () => disposed.push('b'))
+    await sm.closeAll()
+    expect(disposed.sort()).toEqual(['a', 'b'])
+    expect(map.size).toBe(0)
   })
 })

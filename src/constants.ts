@@ -42,3 +42,18 @@ export const SPAWNABLE_BOARD_TYPES = ['terminal', 'browser', 'planning'] as cons
  * two repos. Unit = UTF-16 code units (JS `String.length`), matching the host ring.
  */
 export const MAX_OUTPUT_PAGE = 25_000
+
+/**
+ * Phase 5 (M5) BARRIER tools — orchestrator-tier blocking waits over the host status
+ * stream. READ-ONLY (no PTY write / human confirm / audit — those are for dispatch tools).
+ */
+export const TOOL_WAIT_FOR_IDLE = 'wait_for_idle'
+export const TOOL_WAIT_FOR_ALL = 'wait_for_all'
+
+/**
+ * Default backstop deadline for a barrier wait (30 min) when the tool's `timeoutMs` is
+ * omitted. Env-tunable via `CANVAS_ADE_BARRIER_TIMEOUT_MS` (finite, > 0, else ignored).
+ * A per-call `timeoutMs` ≤ 0 or non-finite opts out entirely (mirrors the mcpConfirm
+ * 10-min backstop convention — settle-and-report never throws on expiry).
+ */
+export const DEFAULT_BARRIER_TIMEOUT_MS = 30 * 60_000
