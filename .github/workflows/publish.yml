@@ -1,18 +1,19 @@
 name: publish
 
 # Publishes @expanse-ade/mcp to the PUBLIC npmjs registry on a version tag (v*),
-# or manually via workflow_dispatch. Scoped packages publish public via
+# or manually via workflow_dispatch.
+#
+# Auth = npm Trusted Publishing (OIDC) — there is NO long-lived NPM_TOKEN secret.
+# GitHub Actions mints a short-lived, workflow-scoped OIDC token (needs the
+# `id-token: write` permission below); npm CLI >= 11.5.1 detects it and exchanges it
+# for publish rights against the trusted publisher registered for this package on
+# npmjs.com (org `ch923dev`, repo `canvas-ade-mcp`, workflow `publish.yml`). npm also
+# attaches a build-provenance attestation. Scoped package publishes public via
 # publishConfig.access=public, so anyone can `npm install` it with no auth.
 #
-# Auth = an npm token in secrets.NPM_TOKEN (npmjs.com -> Access Tokens ->
-# Granular Access Token with Read+Write on the @expanse-ade scope, or a classic
-# Automation token). setup-node's registry-url writes ~/.npmrc wiring
-# NODE_AUTH_TOKEN so `pnpm publish` authenticates as the token owner.
-#
-# CAVEAT: npm tokens EXPIRE. When the token lapses this workflow fails at the
-# publish step with ENEEDAUTH (as it did for 0.9.1) -- rotate the secret before
-# the chosen lifetime ends. A token-free alternative (npm Trusted Publishing /
-# OIDC) is documented in docs/handoffs/2026-06-14-publish-oidc-token-handling.md.
+# NOTE: pnpm (pinned 9.x) has no OIDC support yet, so the publish step uses `npm`
+# directly while pnpm still drives install/typecheck/test/build. Node 22 ships npm
+# 10.x, below the 11.5.1 OIDC floor, so npm is upgraded in the runner first.
 on:
   push:
     tags: ['v*']
@@ -20,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write # required: lets the runner mint the OIDC token for trusted publishing
 
 jobs:
   publish:
@@ -28,13 +30,12 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 22 # resolves to >= 22.14.0, the OIDC floor (no registry-url: OIDC needs no .npmrc auth)
+      - run: npm install -g npm@latest # OIDC trusted publishing needs npm CLI >= 11.5.1; Node 22 bundles 10.x
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # OIDC: no NODE_AUTH_TOKEN / .npmrc auth. --provenance is explicit (also npm's default under OIDC).
+      - run: npm publish --provenance --access public
