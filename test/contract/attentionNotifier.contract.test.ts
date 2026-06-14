@@ -43,6 +43,32 @@ describe('createAttentionNotifier', () => {
     expect(updates).toEqual([])
   })
 
+  it('does NOT emit when a monitorActivity:false board enters an attention bucket', () => {
+    const orch = new EmittingOrchestrator()
+    const { server, updates } = fakeServer()
+    createAttentionNotifier({ server, orchestrator: orch, isSubscribed: () => true })
+    orch.emit({ id: 'shell', status: 'blocked', monitorActivity: false }) // opted out → no emit
+    expect(updates).toEqual([])
+  })
+
+  it('pushes a LEAVE when monitorActivity flips false on an in-attention board', () => {
+    const orch = new EmittingOrchestrator()
+    const { server, updates } = fakeServer()
+    createAttentionNotifier({ server, orchestrator: orch, isSubscribed: () => true })
+    orch.emit({ id: 't1', status: 'blocked' }) // monitored, enters → emit
+    orch.emit({ id: 't1', status: 'blocked', monitorActivity: false }) // opts out → leaves → emit
+    expect(updates).toEqual(['canvas://attention', 'canvas://attention'])
+  })
+
+  it('pushes an ENTER when monitorActivity flips true on an attention-bucket board', () => {
+    const orch = new EmittingOrchestrator()
+    const { server, updates } = fakeServer()
+    createAttentionNotifier({ server, orchestrator: orch, isSubscribed: () => true })
+    orch.emit({ id: 't1', status: 'blocked', monitorActivity: false }) // opted out → no emit
+    orch.emit({ id: 't1', status: 'blocked', monitorActivity: true }) // opts in → enters → emit
+    expect(updates).toEqual(['canvas://attention'])
+  })
+
   it('does NOT emit when no client is subscribed', () => {
     const orch = new EmittingOrchestrator()
     const { server, updates } = fakeServer()

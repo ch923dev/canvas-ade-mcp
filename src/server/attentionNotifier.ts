@@ -11,9 +11,12 @@ export interface AttentionNotifier {
  * Per session: push `notifications/resources/updated` on `canvas://attention` whenever the
  * MEMBERSHIP of the attention set changes (a board enters or leaves blocked/awaiting-review/
  * failed). A change WITHIN the set (blocked→failed) or outside it (running→idle) emits
- * nothing — the resource membership is unchanged. Gated on a live `resources/subscribe` for
- * the URI; the emit is wrapped so a post-close `sendResourceUpdated` ("Not connected") can't
- * throw into the orchestrator fan-out.
+ * nothing — the resource membership is unchanged. A board that opted out of monitoring
+ * (`monitorActivity === false`) is never counted as in-attention, so it raises no push —
+ * matching {@link selectAttention}; the host re-emits on a flag flip so a mid-session
+ * opt-out/opt-in still produces the corresponding leave/enter. Gated on a live
+ * `resources/subscribe` for the URI; the emit is wrapped so a post-close
+ * `sendResourceUpdated` ("Not connected") can't throw into the orchestrator fan-out.
  */
 export function createAttentionNotifier(deps: {
   server: McpServer
@@ -24,7 +27,7 @@ export function createAttentionNotifier(deps: {
   const inAttention = new Set<string>()
 
   const unsub = orchestrator.subscribeStatus((change) => {
-    const nowAttn = ATTENTION_BUCKETS.has(change.status)
+    const nowAttn = ATTENTION_BUCKETS.has(change.status) && change.monitorActivity !== false
     const wasAttn = inAttention.has(change.id)
     if (nowAttn === wasAttn) return // membership unchanged
     if (nowAttn) inAttention.add(change.id)
