@@ -8,6 +8,20 @@ export interface BoardSummary {
   /** User-facing board title (trusted-user content; no page/whiteboard content). */
   title: string
   status: string
+  /**
+   * Terminal agent-preset id the human chose in the New Terminal dialog (`'claude'`,
+   * `'codex'`, …) so an orchestrator can route by capability. Open string (forward
+   * presets allowed); absent on non-terminal boards and on terminals predating the
+   * preset dialog (app schema v10).
+   */
+  agentKind?: string
+  /**
+   * Whether this terminal participates in activity monitoring. Absent ⇒ monitored
+   * (opt-out, not opt-in). `false` keeps a plain shell out of the {@link selectAttention}
+   * queue and the attention notifier — it never nags the orchestrator about a shell that
+   * isn't an agent.
+   */
+  monitorActivity?: boolean
 }
 
 /**
@@ -64,6 +78,14 @@ export interface BoardStatusChange {
   id: BoardId
   status: string
   result?: BoardResult
+  /**
+   * Whether the changed board participates in activity monitoring (mirror of
+   * {@link BoardSummary.monitorActivity}; absent ⇒ monitored). The attention notifier
+   * gates membership on this so a `monitorActivity:false` board entering an attention
+   * bucket raises no `resources/updated` push. The host re-emits a change when this flag
+   * flips so a mid-session opt-out/opt-in still pushes the corresponding leave/enter.
+   */
+  monitorActivity?: boolean
 }
 
 /**

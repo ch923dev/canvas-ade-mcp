@@ -65,6 +65,62 @@ describe('selectAttention', () => {
       []
     )
   })
+
+  it('excludes a monitorActivity:false board even when it is in an attention bucket', () => {
+    const attention = selectAttention([
+      { id: 'agent', type: 'terminal', title: 'Agent', status: 'blocked' },
+      { id: 'shell', type: 'terminal', title: 'Shell', status: 'blocked', monitorActivity: false }
+    ])
+    expect(attention.map((b) => b.id)).toEqual(['agent'])
+  })
+
+  it('keeps monitored boards (monitorActivity true or absent are both in-attention)', () => {
+    const attention = selectAttention([
+      { id: 'm1', type: 'terminal', title: 'On', status: 'failed', monitorActivity: true },
+      { id: 'm2', type: 'terminal', title: 'Default', status: 'failed' }
+    ])
+    expect(attention.map((b) => b.id)).toEqual(['m1', 'm2'])
+  })
+})
+
+describe('canvas://boards resource', () => {
+  it('round-trips agentKind + monitorActivity through to agents', async () => {
+    class IdentityOrchestrator extends MockOrchestrator {
+      override async listBoards(): Promise<BoardSummary[]> {
+        return [
+          {
+            id: 't1',
+            type: 'terminal',
+            title: 'Claude',
+            status: 'running',
+            agentKind: 'claude',
+            monitorActivity: true
+          },
+          {
+            id: 't2',
+            type: 'terminal',
+            title: 'Shell',
+            status: 'idle',
+            monitorActivity: false
+          }
+        ]
+      }
+    }
+    const client = await connectInMemory('worker', new IdentityOrchestrator())
+    const res = await client.readResource({ uri: 'canvas://boards' })
+    expect(JSON.parse(readText(res.contents))).toEqual([
+      {
+        id: 't1',
+        type: 'terminal',
+        title: 'Claude',
+        status: 'running',
+        agentKind: 'claude',
+        monitorActivity: true
+      },
+      { id: 't2', type: 'terminal', title: 'Shell', status: 'idle', monitorActivity: false }
+    ])
+    await client.close()
+  })
 })
 
 describe('canvas://attention resource', () => {

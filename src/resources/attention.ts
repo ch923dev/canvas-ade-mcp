@@ -18,9 +18,15 @@ export const ATTENTION_BUCKETS: ReadonlySet<string> = new Set([
   'failed'
 ])
 
-/** The subset of boards currently in an attention bucket (order preserved). */
+/**
+ * The subset of boards currently in an attention bucket (order preserved). A board that
+ * opted out of activity monitoring (`monitorActivity === false` — a plain shell, not an
+ * agent) is excluded even when it lands in an attention bucket; `undefined`/`true` are
+ * monitored, so this is byte-identical to the old behaviour for any board that doesn't
+ * set the flag.
+ */
 export function selectAttention(boards: BoardSummary[]): BoardSummary[] {
-  return boards.filter((b) => ATTENTION_BUCKETS.has(b.status))
+  return boards.filter((b) => ATTENTION_BUCKETS.has(b.status) && b.monitorActivity !== false)
 }
 
 /**
