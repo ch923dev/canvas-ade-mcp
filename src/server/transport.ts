@@ -10,6 +10,18 @@ function rpcError(code: number, message: string): unknown {
 }
 
 /**
+ * 🔒 PKG-N1 — does the presenting token own this session? A session's McpServer (its tool set
+ * + the boardId bound into write_result/relay_prompt) is frozen at init from the CREATING
+ * token's {tier,boardId}. `requireBearerAuth` validates any token globally but binds it to no
+ * session, so reuse/GET/DELETE routed purely by Mcp-Session-Id would let any valid token drive
+ * someone else's session at the creator's tier (a confused-deputy bypass of the structural tier
+ * split). Bind every reuse to the creator's identity: same tier AND same boardId.
+ */
+function ownsSession(owner: SessionCtx, caller: SessionCtx): boolean {
+  return owner.tier === caller.tier && owner.boardId === caller.boardId
+}
+
+/**
  * Owns the per-session transport map and the stateful streamable-HTTP routing.
  * This is the ONLY module importing the SDK transport — isolated so a future SDK
  * v2 bump (which renames the transport) is a one-file change.
@@ -18,6 +30,8 @@ export class SessionManager {
   private readonly transports = new Map<string, StreamableHTTPServerTransport>()
   /** Per-session teardown (M5 notifier unsubscribe + in-flight barrier cancel). */
   private readonly disposers = new Map<string, () => void>()
+  /** 🔒 PKG-N1: the {tier,boardId} of the token that CREATED each session (ownership key). */
+  private readonly owners = new Map<string, SessionCtx>()
 
   constructor(private readonly factory: ServerFactory) {}
 
@@ -29,6 +43,12 @@ export class SessionManager {
       const existing = this.transports.get(sid)
       if (!existing) {
         res.status(404).json(rpcError(-32001, 'Session not found'))
+        return
+      }
+      // 🔒 PKG-N1: bind reuse to the creating token — a globally-valid bearer from a
+      // different board/tier must not drive someone else's session.
+      if (!this.isOwner(sid, ctx)) {
+        res.status(403).json(rpcError(-32003, 'Forbidden: session belongs to another token'))
         return
       }
       await existing.handleRequest(req, res, req.body)
@@ -48,6 +68,7 @@ export class SessionManager {
       onsessioninitialized: (id) => {
         this.transports.set(id, transport)
         this.disposers.set(id, dispose)
+        this.owners.set(id, ctx) // 🔒 PKG-N1: record the creating token's identity
       }
     })
     transport.onclose = () => {
@@ -56,6 +77,7 @@ export class SessionManager {
         this.transports.delete(id)
         this.disposers.get(id)?.()
         this.disposers.delete(id)
+        this.owners.delete(id)
       }
     }
 
@@ -63,8 +85,8 @@ export class SessionManager {
     await transport.handleRequest(req, res, req.body)
   }
 
-  /** GET (SSE) and DELETE /mcp: route to the named session. */
-  async handleSession(req: Request, res: Response): Promise<void> {
+  /** GET (SSE) and DELETE /mcp: route to the named session, gated on token ownership. */
+  async handleSession(req: Request, res: Response, ctx: SessionCtx): Promise<void> {
     const sid = req.header(HEADER_SESSION_ID)
     if (sid === undefined) {
       res.status(400).json(rpcError(-32000, 'Missing session ID'))
@@ -75,7 +97,19 @@ export class SessionManager {
       res.status(404).json(rpcError(-32001, 'Session not found'))
       return
     }
+    // 🔒 PKG-N1: same ownership gate as POST reuse — the GET-SSE stream + the DELETE teardown
+    // must also be refused to a token that did not create the session.
+    if (!this.isOwner(sid, ctx)) {
+      res.status(403).json(rpcError(-32003, 'Forbidden: session belongs to another token'))
+      return
+    }
     await transport.handleRequest(req, res)
+  }
+
+  /** 🔒 True iff the presenting token's {tier,boardId} matches the session creator's. */
+  private isOwner(sid: string, ctx: SessionCtx): boolean {
+    const owner = this.owners.get(sid)
+    return owner !== undefined && ownsSession(owner, ctx)
   }
 
   /**
@@ -96,6 +130,7 @@ export class SessionManager {
       }
       this.disposers.clear()
       this.transports.clear()
+      this.owners.clear()
     }
   }
 }

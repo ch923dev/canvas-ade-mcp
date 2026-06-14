@@ -69,10 +69,10 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
     sessions.handlePost(req, res, ctxFromAuth(req.auth)).catch(next)
   })
   app.get(MCP_PATH, (req, res, next) => {
-    sessions.handleSession(req, res).catch(next)
+    sessions.handleSession(req, res, ctxFromAuth(req.auth)).catch(next)
   })
   app.delete(MCP_PATH, (req, res, next) => {
-    sessions.handleSession(req, res).catch(next)
+    sessions.handleSession(req, res, ctxFromAuth(req.auth)).catch(next)
   })
 
   const httpServer = createServer(app)

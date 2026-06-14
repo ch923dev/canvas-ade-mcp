@@ -31,4 +31,12 @@ describe('installResourceSubscriptions', () => {
     expect(isSubscribed('canvas://attention')).toBe(false)
     await client.close()
   })
+
+  it('rejects a subscribe to a non-allowlisted URI (bounds the per-session set)', async () => {
+    const { client, isSubscribed } = await wired()
+    // canvas://attention is the only pushed URI; anything else must be refused, not tracked.
+    await expect(client.subscribeResource({ uri: 'canvas://boards' })).rejects.toThrow()
+    expect(isSubscribed('canvas://boards')).toBe(false)
+    await client.close()
+  })
 })
