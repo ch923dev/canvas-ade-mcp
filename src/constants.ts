@@ -59,6 +59,8 @@ export const MAX_PLANNING_ITEMS = 100
 export const MAX_PLANNING_TEXT = 4000
 export const MAX_PLANNING_TITLE = 200
 export const MAX_PLANNING_LABEL = 500
+/** Max chars for a `diagram` element's Mermaid source (kept reviewable in the confirm modal). */
+export const MAX_PLANNING_DIAGRAM = 4000
 
 /**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a

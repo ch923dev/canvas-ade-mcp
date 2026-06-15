@@ -112,7 +112,37 @@ describe('add_planning_elements tool (S2, planning content write — flag-gated)
     const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
     const res = await client.callTool({
       name: TOOL,
-      arguments: { boardId: 'plan-1', elements: [{ kind: 'diagram', source: 'graph TD' }] }
+      arguments: { boardId: 'plan-1', elements: [{ kind: 'doodle', squiggle: true }] }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('forwards a diagram element (Mermaid source) to the adapter', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', source: 'graph TD\n  A[Plan] --> B[Build]' }]
+      }
+    })
+    expect(orch.calls).toHaveLength(1)
+    expect(orch.calls[0]?.spec.elements[0]).toEqual({
+      kind: 'diagram',
+      source: 'graph TD\n  A[Plan] --> B[Build]'
+    })
+    await client.close()
+  })
+
+  it('rejects a diagram with an empty source (schema guard)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'plan-1', elements: [{ kind: 'diagram', source: '' }] }
     })
     expect(res.isError).toBe(true)
     expect(orch.calls).toEqual([])

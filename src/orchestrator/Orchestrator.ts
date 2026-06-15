@@ -139,15 +139,16 @@ export type PlanningNoteTint = 'yellow' | 'blue' | 'green' | 'plain'
  * One structured planning element an agent emits via `add_planning_elements` (S2) — CONTENT
  * only. The host mints ids, positions (stacked below existing content), and default sizes,
  * sanitizes every text field, and re-validates against the canvas schema before it lands.
- * Discriminated on `kind`; only the existing schema kinds that carry agent content are
- * exposed (note · checklist · text · arrow) so `MIN_READER_VERSION` stays at 9 (no schema
- * bump). 🔒 Untrusted passive content: it renders but never auto-arms an action.
+ * Discriminated on `kind`: note · checklist · text · arrow (S2) · diagram (a Mermaid `source`
+ * the host renders to a themed SVG in a sandboxed worker — requires host schema v11). 🔒
+ * Untrusted passive content: it renders but never auto-arms an action.
  */
 export type PlanningElementSpec =
   | { kind: 'note'; text: string; tint?: PlanningNoteTint }
   | { kind: 'checklist'; title: string; items: Array<{ label: string; done?: boolean }> }
   | { kind: 'text'; text: string }
   | { kind: 'arrow'; dx: number; dy: number }
+  | { kind: 'diagram'; source: string }
 
 /** The batch an agent writes to a planning board in one confirmed call. */
 export interface PlanningElementsSpec {
