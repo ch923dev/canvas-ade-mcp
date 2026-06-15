@@ -27,6 +27,17 @@ export const TOOL_RELAY_PROMPT = 'relay_prompt'
 export const TOOL_WRITE_RESULT = 'write_result'
 
 /**
+ * Read-only working-tree diff for a terminal board (PR-2b). Orchestrator-tier: the
+ * orchestrator collects each worker's diff to roll up "what changed" in the result/recap
+ * zones — a worker must NOT read another board's diff (cross-worker info leak), so it is
+ * registered ONLY for the orchestrator tier. Content-less write surface: the only input is
+ * the target board id; the host resolves that opaque id to the board's own resolved spawn
+ * cwd and runs `git diff` read-only there (never a caller-supplied path). The returned diff
+ * is bounded by the host (100 KB) — this tool is the thin transport.
+ */
+export const TOOL_GIT_DIFF = 'git_diff'
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward
