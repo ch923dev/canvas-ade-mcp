@@ -8,6 +8,7 @@ import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
+import { registerAddPlanningElements } from './tools/addPlanningElements'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
@@ -42,9 +43,16 @@ export class ServerFactory {
    *   token can't drive cables it doesn't own. Left undefined → relay open to any orchestrator
    *   (the prior single-token behaviour).
    */
+  /**
+   * @param planningWrite Gate for the S2 planning content-write path. When true,
+   *   `add_planning_elements` is registered (orchestrator-tier) and `spawn_board` gains an
+   *   optional `seed`. Default false → the write tool is absent from every `tools/list`
+   *   (flag-gated for the first release, ADR 0003).
+   */
   constructor(
     private readonly orchestrator: Orchestrator,
-    private readonly commandBoardId?: BoardId
+    private readonly commandBoardId?: BoardId,
+    private readonly planningWrite: boolean = false
   ) {}
 
   getServer(ctx: SessionCtx): { server: McpServer; dispose: () => void } {
@@ -65,10 +73,17 @@ export class ServerFactory {
         { description: 'Orchestrator-only health check. Returns "orchestrator-pong".' },
         async () => ({ content: [{ type: 'text', text: 'orchestrator-pong' }] })
       )
-      // Lifecycle write tools (Phase 3+).
-      registerSpawnBoard(server, this.orchestrator)
+      // Lifecycle write tools (Phase 3+). `spawn_board` gains the optional planning `seed`
+      // only when the host enables the S2 write path (the same flag below).
+      registerSpawnBoard(server, this.orchestrator, { planningWrite: this.planningWrite })
       registerCloseBoard(server, this.orchestrator)
       registerConfigureBoard(server, this.orchestrator)
+      // 🔒 Planning content write (S2) — flag-gated, orchestrator-tier. Absent from
+      // tools/list entirely unless the host opts in (ADR 0003: attacker-influenceable
+      // content onto the durable canvas, behind a mandatory write-time human confirm).
+      if (this.planningWrite) {
+        registerAddPlanningElements(server, this.orchestrator)
+      }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
       registerAssignPrompt(server, this.orchestrator)

@@ -7,7 +7,8 @@ import type {
   BoardStatusChange,
   BoardSummary,
   MemoryDoc,
-  Orchestrator
+  Orchestrator,
+  PlanningElementsSpec
 } from './Orchestrator'
 
 /** A no-op Orchestrator for contract tests and standalone runs. */
@@ -25,6 +26,8 @@ export class MockOrchestrator implements Orchestrator {
   }
 
   async closeBoard(_boardId: BoardId): Promise<void> {}
+
+  async addPlanningElements(_boardId: BoardId, _spec: PlanningElementsSpec): Promise<void> {}
 
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 
