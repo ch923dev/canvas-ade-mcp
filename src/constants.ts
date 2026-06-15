@@ -27,6 +27,29 @@ export const TOOL_RELAY_PROMPT = 'relay_prompt'
 export const TOOL_WRITE_RESULT = 'write_result'
 
 /**
+ * Planning-board content WRITE tool (S2) — orchestrator-tier, **flag-gated** (registered
+ * only when the host enables `planningWrite`). It writes attacker-influenceable CONTENT
+ * onto the durable canvas (the first such MCP path, ADR 0003), so the HOST gates it behind
+ * a mandatory write-time human confirm that shows the full rendered content, plus
+ * validate/sanitize/cap. The agent-emitted content is untrusted passive context: it
+ * renders, but never auto-arms an action.
+ */
+export const TOOL_ADD_PLANNING_ELEMENTS = 'add_planning_elements'
+
+/**
+ * Transport-layer caps for one `add_planning_elements` call (defence in depth — the HOST
+ * re-validates + re-caps authoritatively). Kept generous but bounded so a single call can
+ * never balloon the canvas document. A `checklist` is one element carrying up to
+ * {@link MAX_PLANNING_ITEMS} items.
+ */
+export const MAX_PLANNING_ELEMENTS_PER_CALL = 50
+export const MAX_PLANNING_ITEMS = 100
+/** Max chars for free-text fields (note/text body); titles/labels are capped shorter. */
+export const MAX_PLANNING_TEXT = 4000
+export const MAX_PLANNING_TITLE = 200
+export const MAX_PLANNING_LABEL = 500
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward

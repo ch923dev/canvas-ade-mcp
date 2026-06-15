@@ -22,6 +22,12 @@ export interface McpServerDeps {
    * behaviour (correct for a single-orchestrator-token deployment).
    */
   commandBoardId?: BoardId
+  /**
+   * Gate for the S2 planning content-write path. When true, `add_planning_elements` is
+   * registered (orchestrator-tier) and `spawn_board` gains an optional `seed`. Default
+   * false → the write tool is flag-gated off for the first release (ADR 0003).
+   */
+  planningWrite?: boolean
 }
 
 export interface RunningMcpServer {
@@ -63,7 +69,9 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
   // with an explicit cap (MCP control messages are small; reject oversized bodies).
   app.use(MCP_PATH, express.json({ limit: '1mb' }))
 
-  const sessions = new SessionManager(new ServerFactory(deps.orchestrator, deps.commandBoardId))
+  const sessions = new SessionManager(
+    new ServerFactory(deps.orchestrator, deps.commandBoardId, deps.planningWrite ?? false)
+  )
 
   app.post(MCP_PATH, (req, res, next) => {
     sessions.handlePost(req, res, ctxFromAuth(req.auth)).catch(next)

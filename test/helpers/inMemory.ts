@@ -16,9 +16,10 @@ export async function connectInMemory(
   tier: Tier,
   orchestrator: Orchestrator = new MockOrchestrator(),
   boardId = 'test-board',
-  commandBoardId?: string
+  commandBoardId?: string,
+  planningWrite = false
 ): Promise<Client> {
-  const factory = new ServerFactory(orchestrator, commandBoardId)
+  const factory = new ServerFactory(orchestrator, commandBoardId, planningWrite)
   const { server } = factory.getServer({ tier, scopes: [], boardId })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'contract-test', version: '0.0.0' })

@@ -132,6 +132,28 @@ export interface BoardConfig {
   cwd?: string
 }
 
+/** Note tints an agent may pick (mirrors the app's `NoteTint`; absent ⇒ host default). */
+export type PlanningNoteTint = 'yellow' | 'blue' | 'green' | 'plain'
+
+/**
+ * One structured planning element an agent emits via `add_planning_elements` (S2) — CONTENT
+ * only. The host mints ids, positions (stacked below existing content), and default sizes,
+ * sanitizes every text field, and re-validates against the canvas schema before it lands.
+ * Discriminated on `kind`; only the existing schema kinds that carry agent content are
+ * exposed (note · checklist · text · arrow) so `MIN_READER_VERSION` stays at 9 (no schema
+ * bump). 🔒 Untrusted passive content: it renders but never auto-arms an action.
+ */
+export type PlanningElementSpec =
+  | { kind: 'note'; text: string; tint?: PlanningNoteTint }
+  | { kind: 'checklist'; title: string; items: Array<{ label: string; done?: boolean }> }
+  | { kind: 'text'; text: string }
+  | { kind: 'arrow'; dx: number; dy: number }
+
+/** The batch an agent writes to a planning board in one confirmed call. */
+export interface PlanningElementsSpec {
+  elements: PlanningElementSpec[]
+}
+
 /**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
@@ -146,6 +168,15 @@ export interface Orchestrator {
    * resolves. The dirty-worktree prompt arrives with Feature Workspaces (M6).
    */
   closeBoard(boardId: BoardId): Promise<void>
+  /**
+   * 🔒 Populate a PLANNING board with structured content — notes / checklists / text /
+   * arrows (S2). Orchestrator-tier, flag-gated. The host validates + sanitizes + caps every
+   * element, shows the FULL rendered content in a mandatory write-time human confirm, and
+   * only on approval appends them to the board (via the command channel) as discrete,
+   * undoable edits. Rejects a non-planning target. The content is untrusted passive context
+   * — it renders, never auto-arms an action ("Run"-wiring is a separate, out-of-scope path).
+   */
+  addPlanningElements(boardId: BoardId, spec: PlanningElementsSpec): Promise<void>
   /**
    * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
    * supplied fields change; the host filters to the board type's patchable keys.
