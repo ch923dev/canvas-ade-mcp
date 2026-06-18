@@ -45,19 +45,25 @@ export class ServerFactory {
    */
   /**
    * @param planningWrite Gate for the S2 planning content-write path. When true,
-   *   `add_planning_elements` is registered (orchestrator-tier) and `spawn_board` gains an
-   *   optional `seed`. Default false → the write tool is absent from every `tools/list`
-   *   (flag-gated for the first release, ADR 0003).
+   *   `add_planning_elements` is registered (orchestrator + connected tiers) and `spawn_board`
+   *   gains an optional `seed`. Default false → the write tool is absent from every `tools/list`
+   *   (flag-gated for the first release, ADR 0003). May be a `() => boolean` getter re-evaluated
+   *   per session so a runtime-toggled host consent is reflected (Agent Orchestration).
    */
   constructor(
     private readonly orchestrator: Orchestrator,
     private readonly commandBoardId?: BoardId,
-    private readonly planningWrite: boolean = false
+    private readonly planningWrite: boolean | (() => boolean) = false
   ) {}
 
   getServer(ctx: SessionCtx): { server: McpServer; dispose: () => void } {
     const server = new McpServer(SERVER_INFO)
     const disposers: Array<() => void> = []
+    // Re-evaluate the planning-write gate ONCE per session (the host's orchestration consent is
+    // runtime-toggleable while this server is a process singleton — a fixed boot-time boolean
+    // would never reflect a later Enable). Computed here so both tier branches read one value.
+    const planningWrite =
+      typeof this.planningWrite === 'function' ? this.planningWrite() : this.planningWrite
 
     // ping — both tiers.
     server.registerTool(TOOL_PING, { description: 'Health check. Returns "pong".' }, async () => ({
@@ -75,13 +81,13 @@ export class ServerFactory {
       )
       // Lifecycle write tools (Phase 3+). `spawn_board` gains the optional planning `seed`
       // only when the host enables the S2 write path (the same flag below).
-      registerSpawnBoard(server, this.orchestrator, { planningWrite: this.planningWrite })
+      registerSpawnBoard(server, this.orchestrator, { planningWrite })
       registerCloseBoard(server, this.orchestrator)
       registerConfigureBoard(server, this.orchestrator)
       // 🔒 Planning content write (S2) — flag-gated, orchestrator-tier. Absent from
       // tools/list entirely unless the host opts in (ADR 0003: attacker-influenceable
       // content onto the durable canvas, behind a mandatory write-time human confirm).
-      if (this.planningWrite) {
+      if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
@@ -94,6 +100,22 @@ export class ServerFactory {
       registerGitDiff(server, this.orchestrator)
       // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
       disposers.push(registerBarrierTools(server, this.orchestrator))
+    } else if (ctx.tier === 'connected') {
+      // 🔒 Connected tier (Agent Orchestration v1): a CONSENTED Terminal board the user is
+      // talking to. It gets a DELIBERATELY NARROW slice of the orchestrator's write surface —
+      // relay along its OWN outgoing cables + act on the canvas (spawn/configure/plan-write) —
+      // and NONE of the cross-board/observational tools (handoff_prompt/assign_prompt/interrupt/
+      // close_board/git_diff/barriers stay orchestrator-only). Every tool below still pays the
+      // host's per-action ConfirmModal; relay additionally requires a directed orchestration
+      // cable AND is scoped to this board as source (see registerRelayPrompt). The capability
+      // split is structural — a connected board's tools/list never even contains the omitted tools.
+      registerSpawnBoard(server, this.orchestrator, { planningWrite })
+      registerConfigureBoard(server, this.orchestrator)
+      if (planningWrite) {
+        registerAddPlanningElements(server, this.orchestrator)
+      }
+      // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
+      registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers

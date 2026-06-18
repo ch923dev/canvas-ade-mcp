@@ -116,4 +116,49 @@ describe('relay_prompt tool (T4.6, agent-to-agent dispatch over a connector)', (
     expect(orch.relayed).toEqual([{ sourceId: 'A', targetId: 'B', text: 'still works' }])
     await client.close()
   })
+
+  // 🔒 Connected tier (Agent Orchestration v1) — a consented Terminal board may relay ONLY from
+  // its OWN board (scoped to its own outgoing cables). The cable graph (host-checked) authorizes
+  // the target; this binding stops a connected board spoofing sourceId to drive another's cables.
+  describe('connected tier — own-board source binding', () => {
+    it('CAN relay when sourceId === its own (token-derived) boardId', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('connected', orch, 'board-A')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { sourceId: 'board-A', targetId: 'board-B', prompt: 'run the build' }
+      })
+      expect(res.isError).toBeFalsy()
+      expect(orch.relayed).toEqual([
+        { sourceId: 'board-A', targetId: 'board-B', text: 'run the build' }
+      ])
+      await client.close()
+    })
+
+    it('is REJECTED (no relay) when sourceId is a board it does not own', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('connected', orch, 'board-A')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { sourceId: 'board-X', targetId: 'board-B', prompt: 'exploit X cable' }
+      })
+      expect(res.isError).toBe(true)
+      expect(orch.relayed).toEqual([])
+      await client.close()
+    })
+
+    it('ignores commandBoardId — own-board binding governs the connected tier', async () => {
+      // commandBoardId is the orchestrator-tier ('app') lever; a connected token is bound to its
+      // own board regardless, so it can still relay from its own board even when one is set.
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('connected', orch, 'board-A', 'app')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { sourceId: 'board-A', targetId: 'board-B', prompt: 'ok' }
+      })
+      expect(res.isError).toBeFalsy()
+      expect(orch.relayed).toEqual([{ sourceId: 'board-A', targetId: 'board-B', text: 'ok' }])
+      await client.close()
+    })
+  })
 })

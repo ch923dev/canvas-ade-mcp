@@ -1,6 +1,6 @@
 {
   "name": "@expanse-ade/mcp",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "packageManager": "pnpm@9.15.9",
   "description": "MCP server layer for Canvas ADE \u00e2\u20ac\u201d lets AI agents in Terminal boards orchestrate the canvas (command board / swarm).",
   "type": "module",

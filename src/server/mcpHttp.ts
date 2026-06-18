@@ -24,10 +24,15 @@ export interface McpServerDeps {
   commandBoardId?: BoardId
   /**
    * Gate for the S2 planning content-write path. When true, `add_planning_elements` is
-   * registered (orchestrator-tier) and `spawn_board` gains an optional `seed`. Default
-   * false → the write tool is flag-gated off for the first release (ADR 0003).
+   * registered (orchestrator + connected tiers) and `spawn_board` gains an optional `seed`.
+   * Default false → the write tool is flag-gated off for the first release (ADR 0003).
+   *
+   * May be a `() => boolean` getter, re-evaluated PER SESSION (each `getServer`). The host's
+   * orchestration consent is per-project and runtime-toggleable while this server is a process
+   * singleton, so a fixed boolean captured at boot would never reflect a later Enable — the
+   * getter lets a session opened after consent is granted see the write tool. (Agent Orchestration.)
    */
-  planningWrite?: boolean
+  planningWrite?: boolean | (() => boolean)
 }
 
 export interface RunningMcpServer {
@@ -38,10 +43,19 @@ export interface RunningMcpServer {
   close(): Promise<void>
 }
 
-/** Re-derive the session context from the server-verified bearer token. */
+/**
+ * Re-derive the session context from the server-verified bearer token. The tier is read from
+ * the token's `extra.tier` and re-validated against the closed vocabulary — an unknown value
+ * fails CLOSED to `worker` (least privilege), never silently to a higher tier.
+ */
 export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
   const extra = (auth?.extra ?? {}) as { tier?: unknown; boardId?: unknown }
-  const tier: Tier = extra.tier === 'orchestrator' ? 'orchestrator' : 'worker'
+  const tier: Tier =
+    extra.tier === 'orchestrator'
+      ? 'orchestrator'
+      : extra.tier === 'connected'
+        ? 'connected'
+        : 'worker'
   const boardId = typeof extra.boardId === 'string' ? extra.boardId : ''
   return { tier, scopes: auth?.scopes ?? [], boardId }
 }

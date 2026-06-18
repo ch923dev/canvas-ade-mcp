@@ -22,11 +22,17 @@ import { dispatchPromptSchema } from './promptSchema'
  * 🔒 Caller-identity binding (BUG-021 part 2): `sourceId` is caller-supplied and the cable
  * (not the caller) is the only authorization the host checks, so ANY orchestrator-tier token
  * could exploit ANY existing cable — fine while exactly one orchestrator token exists, a hole
- * the moment multiple are minted. When the host designates a single command board via
- * `commandBoardId`, this tool restricts `relay_prompt` to that one token-bound identity (the
- * `ctx.boardId` is derived from the verified bearer token, never client input — same trust
- * basis as `write_result`'s board binding). Left `undefined`, behaviour is unchanged (open to
- * any orchestrator-tier caller) so existing single-token deployments keep working.
+ * the moment multiple are minted. The binding is TIER-AWARE:
+ *
+ * - **`orchestrator`** — when the host designates a single command board via `commandBoardId`,
+ *   relay is restricted to that one token-bound identity (the in-process `'app'` orchestrator,
+ *   which may relay from ANY source board). Left `undefined`, behaviour is unchanged (open to
+ *   any orchestrator-tier caller) so existing single-token deployments keep working.
+ * - **`connected`** (Agent Orchestration v1) — a consented Terminal board may relay ONLY from
+ *   its OWN board (`sourceId === ctx.boardId`); the orchestration cable graph (host-checked)
+ *   authorizes the target. STRICTER than `'app'` — it is scoped to its own outgoing cables and
+ *   ignores `commandBoardId`. `ctx.boardId` is token-derived, so `sourceId` can't be spoofed to
+ *   another board.
  */
 export function registerRelayPrompt(
   server: McpServer,
@@ -48,14 +54,32 @@ export function registerRelayPrompt(
       }
     },
     async (args) => {
-      // 🔒 BUG-021: when a command board is designated, only that token-bound identity may
-      // relay — a second orchestrator token (bound to another board) can't exploit a cable
-      // it doesn't own. ctx.boardId comes from the verified token, so it can't be forged.
-      if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
+      if (ctx.tier === 'connected') {
+        // 🔒 A connected Terminal board may relay ONLY from its own board (scoped to its own
+        // outgoing cables); the cable graph (host-checked) authorizes the target. ctx.boardId is
+        // token-derived, so a client can't spoof sourceId to drive another board's cables.
+        if (args.sourceId !== ctx.boardId) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: 'relay_prompt: a connected terminal may only relay from its own board'
+              }
+            ]
+          }
+        }
+      } else if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
+        // 🔒 BUG-021: when a command board is designated, only that token-bound identity may
+        // relay — a second orchestrator token (bound to another board) can't exploit a cable
+        // it doesn't own. ctx.boardId comes from the verified token, so it can't be forged.
         return {
           isError: true,
           content: [
-            { type: 'text', text: 'relay_prompt: caller is not the designated command orchestrator' }
+            {
+              type: 'text',
+              text: 'relay_prompt: caller is not the designated command orchestrator'
+            }
           ]
         }
       }

@@ -32,6 +32,13 @@ describe('tier -> default scopes', () => {
     )
   })
 
+  it('a connected board gets read + dispatch + spawn (NO git:write / answer_permission)', () => {
+    const connected = defaultScopesFor('connected')
+    expect(connected).toEqual(expect.arrayContaining([SCOPE_READ, SCOPE_DISPATCH, SCOPE_SPAWN]))
+    expect(connected).not.toContain(SCOPE_GIT_WRITE)
+    expect(connected).not.toContain(SCOPE_ANSWER_PERMISSION)
+  })
+
   it('returns a fresh array each call (no shared mutable state)', () => {
     const a = defaultScopesFor('orchestrator')
     a.push('mutated')

@@ -17,7 +17,7 @@ export async function connectInMemory(
   orchestrator: Orchestrator = new MockOrchestrator(),
   boardId = 'test-board',
   commandBoardId?: string,
-  planningWrite = false
+  planningWrite: boolean | (() => boolean) = false
 ): Promise<Client> {
   const factory = new ServerFactory(orchestrator, commandBoardId, planningWrite)
   const { server } = factory.getServer({ tier, scopes: [], boardId })

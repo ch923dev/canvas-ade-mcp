@@ -17,8 +17,20 @@ const ORCHESTRATOR_SCOPES: readonly Scope[] = [
   SCOPE_GIT_WRITE,
   SCOPE_ANSWER_PERMISSION
 ]
+// A consented Terminal board (Agent Orchestration v1): relay (dispatch) along its own cables +
+// spawn/configure the canvas. NO git:write (it reads no other board's diff) and NO
+// answer_permission. Tier registration in the factory remains the load-bearing gate; these scopes
+// are the forward-looking finer-grained lever (not yet enforced per-tool).
+const CONNECTED_SCOPES: readonly Scope[] = [SCOPE_READ, SCOPE_DISPATCH, SCOPE_SPAWN]
 
 /** Default scopes granted to a freshly-minted token of the given tier. */
 export function defaultScopesFor(tier: Tier): Scope[] {
-  return [...(tier === 'orchestrator' ? ORCHESTRATOR_SCOPES : WORKER_SCOPES)]
+  switch (tier) {
+    case 'orchestrator':
+      return [...ORCHESTRATOR_SCOPES]
+    case 'connected':
+      return [...CONNECTED_SCOPES]
+    default:
+      return [...WORKER_SCOPES]
+  }
 }
