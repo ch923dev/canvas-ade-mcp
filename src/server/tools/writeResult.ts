@@ -2,7 +2,12 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
-import { TOOL_WRITE_RESULT } from '../../constants'
+import {
+  TOOL_WRITE_RESULT,
+  WRITE_RESULT_MAX_REF_LEN,
+  WRITE_RESULT_MAX_REFS,
+  WRITE_RESULT_MAX_SUMMARY
+} from '../../constants'
 
 /**
  * Register the `write_result` tool (T4.4) — the FIRST worker-tier WRITE tool. A worker
@@ -29,8 +34,11 @@ export function registerWriteResult(
         'All fields optional. Writes only the calling board (no target id is accepted).',
       inputSchema: {
         status: z.string().optional(),
-        summary: z.string().optional(),
-        refs: z.array(z.string()).optional()
+        // 🔒 C3 / BUG-009: cap at the protocol layer (mirrors the host's WRITE_RESULT_MAX_* clamps).
+        // An oversized payload is rejected here by Zod before it reaches the orchestrator; the MAIN
+        // clamps remain as independent defense-in-depth.
+        summary: z.string().max(WRITE_RESULT_MAX_SUMMARY).optional(),
+        refs: z.array(z.string().max(WRITE_RESULT_MAX_REF_LEN)).max(WRITE_RESULT_MAX_REFS).optional()
       }
     },
     async (args) => {

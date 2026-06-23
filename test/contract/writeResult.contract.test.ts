@@ -80,4 +80,69 @@ describe('write_result tool (T4.4, first worker-tier write)', () => {
     expect(orch.written).toEqual([{ id: 'b1', result: {} }])
     await client.close()
   })
+
+  // 🔒 C3 / BUG-009: the caps are enforced at the Zod schema (the protocol layer) — an oversized
+  // payload is rejected at the wire BEFORE the orchestrator is called, so the host's MAIN clamps
+  // are a true backstop rather than the primary guard.
+  describe('C3 / BUG-009 — write_result Zod .max() caps (protocol-layer rejection)', () => {
+    it('rejects a summary longer than 100,000 characters WITHOUT calling the adapter', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('worker', orch, 'b1')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { summary: 'x'.repeat(100_001) }
+      })
+      expect(res.isError).toBe(true)
+      expect(orch.written).toHaveLength(0)
+      await client.close()
+    })
+
+    it('accepts a summary of exactly 100,000 characters', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('worker', orch, 'b1')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { summary: 'x'.repeat(100_000) }
+      })
+      expect(res.isError).toBeFalsy()
+      expect(orch.written).toHaveLength(1)
+      await client.close()
+    })
+
+    it('rejects a refs array with more than 256 elements', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('worker', orch, 'b1')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { refs: Array.from({ length: 257 }, (_, i) => `ref-${i}`) }
+      })
+      expect(res.isError).toBe(true)
+      expect(orch.written).toHaveLength(0)
+      await client.close()
+    })
+
+    it('rejects a refs element longer than 256 characters', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('worker', orch, 'b1')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { refs: ['x'.repeat(257)] }
+      })
+      expect(res.isError).toBe(true)
+      expect(orch.written).toHaveLength(0)
+      await client.close()
+    })
+
+    it('accepts 256 refs of exactly 256 chars each (the boundary)', async () => {
+      const orch = new SpyOrchestrator()
+      const client = await connectInMemory('worker', orch, 'b1')
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { refs: Array.from({ length: 256 }, () => 'y'.repeat(256)) }
+      })
+      expect(res.isError).toBeFalsy()
+      expect(orch.written).toHaveLength(1)
+      await client.close()
+    })
+  })
 })

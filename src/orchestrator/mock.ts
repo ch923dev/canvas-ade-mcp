@@ -8,7 +8,9 @@ import type {
   BoardSummary,
   MemoryDoc,
   Orchestrator,
-  PlanningElementsSpec
+  PlanningElementsSpec,
+  SpawnGroupInput,
+  SpawnGroupResult
 } from './Orchestrator'
 
 /** A no-op Orchestrator for contract tests and standalone runs. */
@@ -45,6 +47,28 @@ export class MockOrchestrator implements Orchestrator {
 
   async gitDiff(_boardId: BoardId): Promise<string> {
     return ''
+  }
+
+  async describeApp(): Promise<unknown> {
+    // A minimal AppModel-shaped object — enough for the resource read contract to assert the
+    // top-level key set ({ version, boardTypes, tools, canvas, rules }). The host's real
+    // describeApp injects the live canvas + the full tool catalog.
+    return {
+      version: 1,
+      boardTypes: [],
+      tools: [{ name: 'spawn_group', purpose: 'spawn a feature zone', tier: 'orchestrator' }],
+      canvas: { boards: [], connectors: [], groups: [] },
+      rules: { spawnCap: 8, everyWriteGated: true, idleTtlMs: 0, idleActivityMs: 0 }
+    }
+  }
+
+  async spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult> {
+    return {
+      groupId: 'mock-group',
+      terminalId: 'mock-terminal',
+      ...(input.planning ? { planningId: 'mock-planning' } : {}),
+      ...(input.browser ? { browserId: 'mock-browser' } : {})
+    }
   }
 
   async boardStatus(_boardId: BoardId): Promise<string> {

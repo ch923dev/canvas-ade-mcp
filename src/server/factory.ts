@@ -4,6 +4,7 @@ import type { BoardId, Scope, Tier } from '../types'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
+import { registerAppModelResource } from '../resources/appModel'
 import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
@@ -14,6 +15,7 @@ import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
 import { registerInterrupt } from './tools/interrupt'
 import { registerGitDiff } from './tools/gitDiff'
+import { registerSpawnGroup } from './tools/spawnGroup'
 import { registerRelayPrompt } from './tools/relayPrompt'
 import { registerBarrierTools } from './tools/barriers'
 import { installResourceSubscriptions } from './resourceSubscriptions'
@@ -98,6 +100,13 @@ export class ServerFactory {
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
       // git_diff (PR-2b) — read-only working-tree diff per board, for the result/recap roll-up.
       registerGitDiff(server, this.orchestrator)
+      // spawn_group (C2-wire) — spawn a feature-zone cluster in one cap-checked step. Orchestrator-
+      // only to bound swarm growth (a connected agent must not grow the topology unaware).
+      registerSpawnGroup(server, this.orchestrator)
+      // canvas://app-model (C1) — read-only app self-model. Orchestrator-only: registered HERE (not
+      // in registerBoardResources, which serves both tiers) so it is absent from a worker/connected
+      // resources/list. The catalog/cap/TTL it exposes are of no use to a non-orchestrator.
+      registerAppModelResource(server, this.orchestrator)
       // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
       disposers.push(registerBarrierTools(server, this.orchestrator))
     } else if (ctx.tier === 'connected') {

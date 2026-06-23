@@ -27,6 +27,35 @@ export const TOOL_RELAY_PROMPT = 'relay_prompt'
 export const TOOL_WRITE_RESULT = 'write_result'
 
 /**
+ * Protocol-layer caps for `write_result` (C3 / BUG-009). MIRROR the host's belt-and-suspenders
+ * clamps (`mcpOrchestrator.ts` `WRITE_RESULT_MAX_*`) so an oversized payload is rejected by the
+ * Zod schema at the wire BEFORE it reaches the orchestrator — the MAIN clamps stay as
+ * defense-in-depth (both layers must agree independently). summary is a one-line human note;
+ * refs is a bounded list of short reference strings (file paths / PR URLs), not raw logs.
+ */
+export const WRITE_RESULT_MAX_SUMMARY = 100_000
+export const WRITE_RESULT_MAX_REFS = 256
+export const WRITE_RESULT_MAX_REF_LEN = 256
+
+/**
+ * Feature-zone cluster spawn (C2-wire / PR-5c) — orchestrator-tier only. Spawns a terminal board
+ * (always) plus an optional planning + browser member, grouped under a Named Group, in ONE
+ * cap-checked step. Content-less (empty boards on spawn), so it is NOT human-gated — the gate
+ * stays on content writes (handoff/assign/relay/add_planning_elements). Orchestrator-tier bounds
+ * swarm growth: a connected agent must not grow the topology without the orchestrator's awareness.
+ */
+export const TOOL_SPAWN_GROUP = 'spawn_group'
+
+/**
+ * Caps for one `spawn_group` call. `SPAWN_GROUP_MAX_NAME` mirrors the host's `SPAWN_GROUP_MAX_NAME`
+ * (`mcpLifecycle.ts`); `SPAWN_GROUP_MAX_LAUNCH` mirrors the host's 400-char launchCommand clamp.
+ * The host re-sanitizes + re-clamps authoritatively (the launchCommand is an exec vector) — these
+ * are the wire-level guard so a malformed payload is rejected before the host is called.
+ */
+export const SPAWN_GROUP_MAX_NAME = 80
+export const SPAWN_GROUP_MAX_LAUNCH = 400
+
+/**
  * Read-only working-tree diff for a terminal board (PR-2b). Orchestrator-tier: the
  * orchestrator collects each worker's diff to roll up "what changed" in the result/recap
  * zones — a worker must NOT read another board's diff (cross-worker info leak), so it is
