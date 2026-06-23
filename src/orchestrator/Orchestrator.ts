@@ -156,6 +156,34 @@ export interface PlanningElementsSpec {
 }
 
 /**
+ * The members a {@link Orchestrator.spawnGroup} cluster may carry (terminal is always present).
+ * STRUCTURAL MIRROR of the host's `SpawnGroupInput` (`src/main/mcpLifecycle.ts`) — the host owns the
+ * authoritative validation; this is the wire shape the `spawn_group` tool forwards.
+ */
+export interface SpawnGroupInput {
+  /** Display name for the Named Group over the cluster (host collapses whitespace + clamps). */
+  name: string
+  /** Add a Planning member to the zone (the decomposed-subtask checklist surface). */
+  planning?: boolean
+  /** Add a Browser member, pre-wired to the terminal via `previewSourceId`. */
+  browser?: boolean
+  /**
+   * 🔒 Agentic CLI the terminal member boots as its FIRST PTY line (e.g. `claude`). This is an
+   * EXEC VECTOR: the host sanitizes it to a single PTY-safe line (strips C0/DEL/C1, rejects
+   * embedded CR/LF — F5/SPEC-W1-B) and clamps it before writing. Treat as trusted-user input.
+   */
+  launchCommand?: string
+}
+
+/** The minted ids a {@link Orchestrator.spawnGroup} returns so the orchestrator can address the zone. */
+export interface SpawnGroupResult {
+  groupId: BoardId
+  terminalId: BoardId
+  planningId?: BoardId
+  browserId?: BoardId
+}
+
+/**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
  * lets canvas-ade-mcp build + test standalone, with no Electron dependency.
@@ -214,6 +242,23 @@ export interface Orchestrator {
    */
   handoffPrompt(boardId: BoardId, text: string): Promise<BoardResult>
   gitDiff(boardId: BoardId): Promise<string>
+  /**
+   * Assemble the read-only app self-model (C1) — board types, the tool catalog, the live canvas
+   * (boards/connectors/groups), and the orchestration rules — so an orchestrator agent can reason
+   * over the actual app instead of a hardcoded recipe. Orchestrator-tier, read-only. Wraps the
+   * host's `buildAppModel` over the loopback wire; serialized as JSON by the `canvas://app-model`
+   * resource. Typed `unknown` here: the `AppModel` shape is host-owned (the package does not model
+   * it) and the JSON serialization needs no compile-time dependency on it.
+   */
+  describeApp(): Promise<unknown>
+  /**
+   * 🔒 Spawn a feature-zone CLUSTER (C2-wire / PR-5c) — a terminal board (always) plus an optional
+   * planning + browser member, grouped under a Named Group, in ONE cap-checked step. Orchestrator-
+   * tier only (bounds swarm growth). Content-less (empty boards), so it is cap-checked, NOT human-
+   * gated — the gate stays on content writes. The host mints + returns every member id. The
+   * `launchCommand` is an exec vector the host sanitizes before the PTY write (F5/SPEC-W1-B).
+   */
+  spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult>
   boardStatus(boardId: BoardId): Promise<string>
   /**
    * Read one capped page of a board's scrollback (T1.4, read-only). `cursor` is the

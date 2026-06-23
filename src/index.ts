@@ -1,5 +1,10 @@
 export { createMcpHttpServer } from './server/mcpHttp'
 export type { McpServerDeps, RunningMcpServer } from './server/mcpHttp'
+// ServerFactory builds a per-session, tier-gated McpServer. Exported so a host can unit-test that
+// its own tool catalog (e.g. the app's APP_TOOLS) stays in lockstep with what the package actually
+// registers per tier (the F25 drift guard) without standing up a full HTTP server.
+export { ServerFactory } from './server/factory'
+export type { SessionCtx } from './server/factory'
 export { TokenStore } from './auth/tokens'
 export { mintBoardToken } from './auth/mint'
 export type { MintedToken } from './auth/mint'
@@ -24,7 +29,9 @@ export type {
   MemoryDoc,
   PlanningElementSpec,
   PlanningElementsSpec,
-  PlanningNoteTint
+  PlanningNoteTint,
+  SpawnGroupInput,
+  SpawnGroupResult
 } from './orchestrator/Orchestrator'
 export { MAX_OUTPUT_PAGE } from './constants'
 export type { Tier, Scope, AuthRow, BoardId } from './types'

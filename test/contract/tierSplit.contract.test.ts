@@ -12,6 +12,7 @@ import {
   TOOL_PING,
   TOOL_RELAY_PROMPT,
   TOOL_SPAWN_BOARD,
+  TOOL_SPAWN_GROUP,
   TOOL_WRITE_RESULT
 } from '../../src/constants'
 
@@ -57,7 +58,10 @@ describe('capability tier split', () => {
         TOOL_ASSIGN_PROMPT,
         TOOL_INTERRUPT,
         TOOL_CLOSE_BOARD,
-        TOOL_GIT_DIFF
+        TOOL_GIT_DIFF,
+        // spawn_group is orchestrator-only (unlike spawn_board) — a connected agent must not grow
+        // the swarm topology unaware (C2-wire invariant).
+        TOOL_SPAWN_GROUP
       ]) {
         expect(names).not.toContain(omitted)
       }
