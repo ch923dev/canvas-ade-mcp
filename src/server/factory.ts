@@ -124,7 +124,9 @@ export class ServerFactory {
     registerWriteResult(server, this.orchestrator, ctx)
 
     registerBoardResources(server, this.orchestrator)
-    registerPrompts(server)
+    // Prompts substrate (W1-F): tier-gated `prompts/list`/`prompts/get`. Pure-render —
+    // gated on ctx.tier (worker → no prompts). See src/prompts/index.ts.
+    registerPrompts(server, ctx)
 
     // M5 attention push (both tiers — observation is safe). Subscribe wiring MUST precede
     // connect (registerCapabilities is connect-gated); getServer always runs before connect.
