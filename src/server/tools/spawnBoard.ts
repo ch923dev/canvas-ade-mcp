@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator, PlanningElementSpec } from '../../orchestrator/Orchestrator'
-import { SPAWNABLE_BOARD_TYPES, TOOL_SPAWN_BOARD } from '../../constants'
+import { SPAWN_BOARD_MAX_TITLE, SPAWNABLE_BOARD_TYPES, TOOL_SPAWN_BOARD } from '../../constants'
 import { planningElementsArraySchema } from './addPlanningElements'
 
 /**
@@ -31,6 +31,9 @@ export function registerSpawnBoard(
     type: z.enum(SPAWNABLE_BOARD_TYPES),
     prompt: z.string().optional(),
     cwd: z.string().optional(),
+    // 2b: optional display name for the new board (else the host's per-type default). The host
+    // re-sanitizes + re-clamps; the wire `.max` rejects an over-long title before the host is called.
+    title: z.string().max(SPAWN_BOARD_MAX_TITLE).optional(),
     // Only offer `seed` when the host has enabled the planning-write path (S2).
     ...(opts.planningWrite ? { seed: planningElementsArraySchema.optional() } : {})
   }
@@ -40,6 +43,7 @@ export function registerSpawnBoard(
       description:
         'Create a new board on the canvas. type is one of terminal | browser | planning. ' +
         'Optional prompt (terminal launch command / agent task) and cwd (working directory). ' +
+        'Optional title: a short display name for the new board (else a generic per-type default). ' +
         (opts.planningWrite
           ? 'Optional seed (planning only): structured elements to populate the new board in one ' +
             'call, shown to the human for confirmation before they land. '
@@ -60,7 +64,8 @@ export function registerSpawnBoard(
       const { id } = await orchestrator.spawnBoard({
         type: args.type,
         prompt: args.prompt,
-        cwd: args.cwd
+        cwd: args.cwd,
+        title: args.title
       })
       // Apply the seed through the SAME confirmed write path as add_planning_elements. A
       // decline throws there → surface it as an isError result (the board still exists, just

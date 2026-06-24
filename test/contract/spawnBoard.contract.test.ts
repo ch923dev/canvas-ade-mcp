@@ -11,11 +11,12 @@ const TOOL = 'spawn_board'
 
 /** Records every spawnBoard call and returns a fixed id, to prove wiring + validation. */
 class SpyOrchestrator extends MockOrchestrator {
-  calls: Array<{ type: string; prompt?: string; cwd?: string }> = []
+  calls: Array<{ type: string; prompt?: string; cwd?: string; title?: string }> = []
   override async spawnBoard(input: {
     type: string
     prompt?: string
     cwd?: string
+    title?: string
   }): Promise<{ id: BoardId }> {
     this.calls.push(input)
     return { id: 'board-xyz' }
@@ -55,6 +56,29 @@ describe('spawn_board tool (T3.1, lifecycle write)', () => {
       arguments: { type: 'browser', prompt: 'run dev', cwd: '/repo' }
     })
     expect(orch.calls).toEqual([{ type: 'browser', prompt: 'run dev', cwd: '/repo' }])
+    await client.close()
+  })
+
+  it('passes through an optional title to the adapter (2b)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    await client.callTool({
+      name: TOOL,
+      arguments: { type: 'planning', title: 'Auth refactor plan' }
+    })
+    expect(orch.calls).toEqual([{ type: 'planning', title: 'Auth refactor plan' }])
+    await client.close()
+  })
+
+  it('rejects an over-long title WITHOUT spawning (wire-level cap, 2b)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { type: 'terminal', title: 'x'.repeat(81) }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([]) // the schema rejects > SPAWN_BOARD_MAX_TITLE before the adapter
     await client.close()
   })
 

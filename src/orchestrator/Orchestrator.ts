@@ -199,7 +199,18 @@ export interface SpawnGroupResult {
  */
 export interface Orchestrator {
   listBoards(): Promise<BoardSummary[]>
-  spawnBoard(input: { type: string; prompt?: string; cwd?: string }): Promise<{ id: BoardId }>
+  /**
+   * Spawn a board (T3.1). Optional `title` (2b) is the agent-chosen display name the new board
+   * carries instead of the per-type default ('Terminal'/'Planning'/…); the host collapses
+   * whitespace, strips control chars, and clamps it (it lands verbatim in later human-confirm
+   * modal bodies). Absent/empty ⇒ the host's per-type default title.
+   */
+  spawnBoard(input: {
+    type: string
+    prompt?: string
+    cwd?: string
+    title?: string
+  }): Promise<{ id: BoardId }>
   /**
    * Close a board (T3.2). The host drains the board's PTY gracefully (not an abrupt
    * SIGKILL) before removing it from the canvas. Idempotent: closing an absent board

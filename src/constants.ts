@@ -105,6 +105,16 @@ export const MAX_PLANNING_SECTION = 60
 export const SPAWNABLE_BOARD_TYPES = ['terminal', 'browser', 'planning'] as const
 
 /**
+ * Max chars for an optional `spawn_board` title (2b) — the agent-chosen display name the new
+ * board carries instead of the per-type default ('Terminal'/'Planning'/…). Mirrors the host's
+ * `SPAWN_BOARD_MAX_TITLE` clamp (`mcpLifecycle.ts`); kept at the same 80 as
+ * {@link SPAWN_GROUP_MAX_NAME} (both are short canvas-chrome labels). The host re-sanitizes +
+ * re-clamps authoritatively — this is the wire-level guard so an over-long title is rejected
+ * before the host is called.
+ */
+export const SPAWN_BOARD_MAX_TITLE = 80
+
+/**
  * Hard cap on the chars returned by ONE `canvas://board/{id}/output` page (T1.4 🔒).
  * The MCP output budget is ~25k; we never emit a larger page even if the host
  * over-returns. MUST match the app accessor's page size (`MAX_OUTPUT_PAGE` in

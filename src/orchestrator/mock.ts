@@ -23,6 +23,7 @@ export class MockOrchestrator implements Orchestrator {
     type: string
     prompt?: string
     cwd?: string
+    title?: string
   }): Promise<{ id: BoardId }> {
     return { id: 'mock-board' }
   }
