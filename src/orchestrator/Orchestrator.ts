@@ -142,13 +142,22 @@ export type PlanningNoteTint = 'yellow' | 'blue' | 'green' | 'plain'
  * Discriminated on `kind`: note · checklist · text · arrow (S2) · diagram (a Mermaid `source`
  * the host renders to a themed SVG in a sandboxed worker — requires host schema v11). 🔒
  * Untrusted passive content: it renders but never auto-arms an action.
+ *
+ * Every variant may carry an optional `section` (2a) — a short column label. The host groups
+ * elements by section value and lays out one column per section (in first-appearance order), so an
+ * agent controls the plan's column structure. Layout-only: the host positions by it, never stores it.
  */
 export type PlanningElementSpec =
-  | { kind: 'note'; text: string; tint?: PlanningNoteTint }
-  | { kind: 'checklist'; title: string; items: Array<{ label: string; done?: boolean }> }
-  | { kind: 'text'; text: string }
-  | { kind: 'arrow'; dx: number; dy: number }
-  | { kind: 'diagram'; source: string }
+  | { kind: 'note'; text: string; tint?: PlanningNoteTint; section?: string }
+  | {
+      kind: 'checklist'
+      title: string
+      items: Array<{ label: string; done?: boolean }>
+      section?: string
+    }
+  | { kind: 'text'; text: string; section?: string }
+  | { kind: 'arrow'; dx: number; dy: number; section?: string }
+  | { kind: 'diagram'; source: string; section?: string }
 
 /** The batch an agent writes to a planning board in one confirmed call. */
 export interface PlanningElementsSpec {

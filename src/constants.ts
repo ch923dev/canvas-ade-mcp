@@ -90,6 +90,11 @@ export const MAX_PLANNING_TITLE = 200
 export const MAX_PLANNING_LABEL = 500
 /** Max chars for a `diagram` element's Mermaid source (kept reviewable in the confirm modal). */
 export const MAX_PLANNING_DIAGRAM = 4000
+/**
+ * Max chars for an element's optional `section` tag (2a) — a short column label the host groups
+ * by. Single-line; the host re-sanitizes + re-caps. Kept tiny: a section is a heading, not prose.
+ */
+export const MAX_PLANNING_SECTION = 60
 
 /**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
