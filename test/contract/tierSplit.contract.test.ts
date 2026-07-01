@@ -13,6 +13,7 @@ import {
   TOOL_RELAY_PROMPT,
   TOOL_SPAWN_BOARD,
   TOOL_SPAWN_GROUP,
+  TOOL_TIDY_CANVAS,
   TOOL_WRITE_RESULT
 } from '../../src/constants'
 
@@ -61,7 +62,10 @@ describe('capability tier split', () => {
         TOOL_GIT_DIFF,
         // spawn_group is orchestrator-only (unlike spawn_board) — a connected agent must not grow
         // the swarm topology unaware (C2-wire invariant).
-        TOOL_SPAWN_GROUP
+        TOOL_SPAWN_GROUP,
+        // tidy_canvas is orchestrator-only too (P2) — a connected agent must not rearrange
+        // everyone else's boards.
+        TOOL_TIDY_CANVAS
       ]) {
         expect(names).not.toContain(omitted)
       }

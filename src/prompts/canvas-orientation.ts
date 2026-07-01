@@ -36,7 +36,7 @@ promptRegistry.register({
             'Check your tier from the token you were minted with:',
             '- **orchestrator** — full tool surface: spawn/close/configure boards, ' +
               'dispatch/handoff/relay prompts, interrupt workers, read git diffs, ' +
-              'wait for barriers, write planning elements (when consent is granted).',
+              'wait for barriers, tidy the canvas, write planning elements (when consent is granted).',
             '- **connected** — scoped surface: spawn/configure boards, relay prompts ' +
               'along YOUR outgoing cables only, write planning elements (when consent granted).',
             '- **worker** — read-only + write_result for YOUR board only.',

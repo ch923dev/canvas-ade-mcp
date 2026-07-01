@@ -161,6 +161,24 @@ export const MAX_PLAN_ITEM_NOTE = 2000
 export const MAX_PLAN_TITLE = 200
 
 /**
+ * Canvas TIDY tool (P2) — orchestrator-tier only, UN-GATED. Repositions the whole canvas into a
+ * clean, non-overlapping arrangement via the app's already-built deterministic packer (`tidyLayout`
+ * + `canvasStore.tidyBoards`). Content-less (it only moves boards that already exist — never resizes,
+ * creates, or deletes one) and fully reversible in ONE Ctrl+Z, so — like `spawn_group` — it carries
+ * no exec vector and is NOT human-gated (the write-time confirm stays on content writes). Orchestrator-
+ * tier: rearranging everyone's boards is an orchestrator-scope act, not a single connected worker's.
+ */
+export const TOOL_TIDY_CANVAS = 'tidy_canvas'
+
+/**
+ * The tidy MODES an agent may pick — 1:1 with the app's `TidyMode`: `smart` (link-aware, the default),
+ * `by-type` (terminals | browsers | planning columns), `grid` (shelf bin-pack). This IS the
+ * "orientation" the epic folded into "a mode the agent picks". An off-enum value is rejected at the
+ * Zod layer; the host applier also re-validates and falls back to `smart` (defence in depth).
+ */
+export const TIDY_MODES = ['smart', 'by-type', 'grid'] as const
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward

@@ -96,6 +96,12 @@ export class MockOrchestrator implements Orchestrator {
     }
   }
 
+  async tidyCanvas(_input: { mode?: string }): Promise<unknown> {
+    // A minimal { moved } fixture — enough for the tool call contract to round-trip. The host's real
+    // tidyCanvas forwards a `tidyBoards` command to the renderer packer and returns the moved count.
+    return { moved: 0 }
+  }
+
   async boardStatus(_boardId: BoardId): Promise<string> {
     return 'idle'
   }

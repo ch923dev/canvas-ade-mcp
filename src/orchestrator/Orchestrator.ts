@@ -382,6 +382,17 @@ export interface Orchestrator {
    * `launchCommand` is an exec vector the host sanitizes before the PTY write (F5/SPEC-W1-B).
    */
   spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult>
+  /**
+   * 🔒 Tidy the whole canvas (P2) — reposition every board into a clean, non-overlapping arrangement
+   * via the host's deterministic packer (`tidyLayout` + `canvasStore.tidyBoards`). Orchestrator-tier
+   * only. Content-less + reposition-only (it MOVES boards that already exist; never resizes, creates,
+   * or deletes one), so it is NOT human-gated — the write-time confirm stays on content writes — and it
+   * is fully reversible in ONE host undo step. `mode` picks the arrangement ('smart' | 'by-type' |
+   * 'grid'; absent ⇒ 'smart'). Typed `unknown` return here: the `{ moved }` shape is host-owned (the
+   * package does not model it), mirroring `describeApp` / `describeLayout`; the tool serializes it as
+   * JSON. `moved` is the count of boards whose position changed (0 ⇒ the canvas was already tidy).
+   */
+  tidyCanvas(input: { mode?: string }): Promise<unknown>
   boardStatus(boardId: BoardId): Promise<string>
   /**
    * Read one KANBAN board's columns + cards (P3b, read-only) — the read half of the card loop, so an

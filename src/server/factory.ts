@@ -19,6 +19,7 @@ import { registerWriteResult } from './tools/writeResult'
 import { registerInterrupt } from './tools/interrupt'
 import { registerGitDiff } from './tools/gitDiff'
 import { registerSpawnGroup } from './tools/spawnGroup'
+import { registerTidyCanvas } from './tools/tidyCanvas'
 import { registerRelayPrompt } from './tools/relayPrompt'
 import { registerBarrierTools } from './tools/barriers'
 import { installResourceSubscriptions } from './resourceSubscriptions'
@@ -112,6 +113,10 @@ export class ServerFactory {
       // spawn_group (C2-wire) — spawn a feature-zone cluster in one cap-checked step. Orchestrator-
       // only to bound swarm growth (a connected agent must not grow the topology unaware).
       registerSpawnGroup(server, this.orchestrator)
+      // tidy_canvas (P2) — reposition the whole canvas via the deterministic packer. Orchestrator-
+      // only (rearranging everyone's boards is an orchestrator act) + UN-GATED (content-less,
+      // reposition-only, one-undo reversible — the spawn_group precedent; NOT behind planningWrite).
+      registerTidyCanvas(server, this.orchestrator)
       // canvas://app-model (C1) — read-only app self-model. Orchestrator-only: registered HERE (not
       // in registerBoardResources, which serves both tiers) so it is absent from a worker/connected
       // resources/list. The catalog/cap/TTL it exposes are of no use to a non-orchestrator.
