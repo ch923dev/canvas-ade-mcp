@@ -6,6 +6,8 @@ import type {
   BoardResultInput,
   BoardStatusChange,
   BoardSummary,
+  KanbanCardPatch,
+  KanbanCardSpec,
   MemoryDoc,
   Orchestrator,
   PlanningElementsSpec,
@@ -31,6 +33,16 @@ export class MockOrchestrator implements Orchestrator {
   async closeBoard(_boardId: BoardId): Promise<void> {}
 
   async addPlanningElements(_boardId: BoardId, _spec: PlanningElementsSpec): Promise<void> {}
+
+  async addCard(_boardId: BoardId, _spec: KanbanCardSpec): Promise<{ id: BoardId }> {
+    return { id: 'mock-card' }
+  }
+
+  async moveCard(_boardId: BoardId, _cardId: BoardId, _toColumnId: string): Promise<void> {}
+
+  async updateCard(_boardId: BoardId, _cardId: BoardId, _patch: KanbanCardPatch): Promise<void> {}
+
+  async removeCard(_boardId: BoardId, _cardId: BoardId): Promise<void> {}
 
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 

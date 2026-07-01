@@ -30,6 +30,8 @@ export type {
   PlanningElementSpec,
   PlanningElementsSpec,
   PlanningNoteTint,
+  KanbanCardSpec,
+  KanbanCardPatch,
   SpawnGroupInput,
   SpawnGroupResult
 } from './orchestrator/Orchestrator'

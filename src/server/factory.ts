@@ -11,6 +11,7 @@ import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
 import { registerAddPlanningElements } from './tools/addPlanningElements'
+import { registerKanbanCards } from './tools/kanbanCards'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
@@ -92,6 +93,9 @@ export class ServerFactory {
       // content onto the durable canvas, behind a mandatory write-time human confirm).
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        // 🔒 Kanban card writes (P3) — same content-write gate as add_planning_elements (a Kanban
+        // board is a plan surface). add/move/update/remove a card; each op is host-confirmed.
+        registerKanbanCards(server, this.orchestrator)
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
@@ -127,6 +131,7 @@ export class ServerFactory {
       registerConfigureBoard(server, this.orchestrator)
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        registerKanbanCards(server, this.orchestrator)
       }
       // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)

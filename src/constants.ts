@@ -97,6 +97,31 @@ export const MAX_PLANNING_DIAGRAM = 4000
 export const MAX_PLANNING_SECTION = 60
 
 /**
+ * Kanban card WRITE tools (P3) — orchestrator + connected tiers, **flag-gated** behind the SAME
+ * `planningWrite` gate as `add_planning_elements` (a Kanban board is a plan surface; both write
+ * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). Each op is gated by the HOST
+ * behind a mandatory write-time human confirm + validate/sanitize/cap. `add_card` mints + returns the
+ * card id (the agent addresses it thereafter); move/update/remove take that id. Passive content — a
+ * card renders on the board, never auto-arms an action.
+ */
+export const TOOL_ADD_CARD = 'add_card'
+export const TOOL_MOVE_CARD = 'move_card'
+export const TOOL_UPDATE_CARD = 'update_card'
+export const TOOL_REMOVE_CARD = 'remove_card'
+
+/**
+ * Transport-layer caps for a Kanban card write (defence in depth — the HOST re-validates + re-caps
+ * authoritatively). A card carries a short title + optional single-line chips (tag/assignee/ref); ids
+ * are opaque strings the host mints (card) or a column slug the agent targets.
+ */
+export const MAX_CARD_TITLE = 200
+export const MAX_CARD_TAG = 40
+export const MAX_CARD_ASSIGNEE = 40
+export const MAX_CARD_REF = 80
+export const MAX_CARD_ID = 200
+export const MAX_COLUMN_ID = 200
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward

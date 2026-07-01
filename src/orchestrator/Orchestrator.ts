@@ -165,6 +165,32 @@ export interface PlanningElementsSpec {
 }
 
 /**
+ * The content an agent supplies to add ONE Kanban card (P3) — CONTENT only. The host mints the card
+ * id, appends it to the target column, sanitizes every text field, and re-validates before it lands.
+ * Only `columnId` + `title` are required; the chips are optional presentation. 🔒 Untrusted passive
+ * content: it renders on the board, never auto-arms an action.
+ */
+export interface KanbanCardSpec {
+  /** The column (lane) the card lands in — a column id on the target board (e.g. a default slug like 'backlog'). */
+  columnId: string
+  title: string
+  /** Free-text status/type chip (e.g. 'feature', 'needs review'). */
+  tag?: string
+  /** Assignee agent-preset id (e.g. 'claude', 'codex') — rendered as a dot + label. */
+  assignee?: string
+  /** Free-text external reference chip (e.g. 'PR #271'). */
+  ref?: string
+}
+
+/** The fields an agent may change on an existing Kanban card (P3). All optional; only supplied fields change. */
+export interface KanbanCardPatch {
+  title?: string
+  tag?: string
+  assignee?: string
+  ref?: string
+}
+
+/**
  * The members a {@link Orchestrator.spawnGroup} cluster may carry (terminal is always present).
  * STRUCTURAL MIRROR of the host's `SpawnGroupInput` (`src/main/mcpLifecycle.ts`) — the host owns the
  * authoritative validation; this is the wire shape the `spawn_group` tool forwards.
@@ -226,6 +252,30 @@ export interface Orchestrator {
    * — it renders, never auto-arms an action ("Run"-wiring is a separate, out-of-scope path).
    */
   addPlanningElements(boardId: BoardId, spec: PlanningElementsSpec): Promise<void>
+  /**
+   * 🔒 Add ONE card to a KANBAN board's column (P3). Orchestrator/connected-tier, flag-gated
+   * (`planningWrite` — a Kanban board is a plan surface). The host MINTS the card id, resolves +
+   * kanban-checks the target, validates + sanitizes + caps the content, shows it in a mandatory
+   * write-time human confirm, and only on approval appends the card via the command channel. Returns
+   * the minted card id so the agent can address it later (move/update/remove). Rejects a non-kanban
+   * target. The content is untrusted passive context — it renders, never auto-arms an action.
+   */
+  addCard(boardId: BoardId, spec: KanbanCardSpec): Promise<{ id: BoardId }>
+  /**
+   * 🔒 Move an existing card to another column on the same KANBAN board (P3). Human-confirmed. Rejects
+   * a non-kanban target, an unknown card id, or an unknown destination column.
+   */
+  moveCard(boardId: BoardId, cardId: BoardId, toColumnId: string): Promise<void>
+  /**
+   * 🔒 Update an existing card's title / tag / assignee / ref (P3). Only the supplied fields change.
+   * Human-confirmed. Rejects a non-kanban target or an unknown card id.
+   */
+  updateCard(boardId: BoardId, cardId: BoardId, patch: KanbanCardPatch): Promise<void>
+  /**
+   * 🔒 Remove a card from a KANBAN board (P3) — destructive, so human-confirmed. Rejects a non-kanban
+   * target or an unknown card id.
+   */
+  removeCard(boardId: BoardId, cardId: BoardId): Promise<void>
   /**
    * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
    * supplied fields change; the host filters to the board type's patchable keys.
