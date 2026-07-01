@@ -384,6 +384,16 @@ export interface Orchestrator {
   spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult>
   boardStatus(boardId: BoardId): Promise<string>
   /**
+   * Read one KANBAN board's columns + cards (P3b, read-only) — the read half of the card loop, so an
+   * agent can see a board's live lanes/cards before it mutates them (add/move/update/remove_card).
+   * Served as `canvas://board/{id}/cards` for BOTH tiers (observation is safe; a worker managing its
+   * own plan benefits too). A non-kanban board reads the graceful shell `{ …, isKanban: false,
+   * columns: [] }` (an agent may probe any id — it never throws for a wrong type). Typed `unknown`
+   * here: the grouped `BoardCards` shape is host-owned (the package does not model it), mirroring
+   * `describeApp` / `describeLayout`; the resource just serializes it as JSON.
+   */
+  boardCards(boardId: BoardId): Promise<unknown>
+  /**
    * Read one capped page of a board's scrollback (T1.4, read-only). `cursor` is the
    * tail-anchored offset from a prior page's `nextCursor`; omit for the newest tail.
    */

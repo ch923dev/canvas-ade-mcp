@@ -56,6 +56,7 @@ promptRegistry.register({
             '## Useful resources to read first',
             '- canvas://boards — all boards, their ids, types, and status buckets.',
             '- canvas://board-states — boards grouped by status bucket.',
+            "- canvas://board/{id}/cards — one Kanban board's columns + cards (read-only).",
             "- canvas://board/{id}/output — last 25k chars of a board's terminal output.",
             '- canvas://board/{id}/result — the structured last result a worker recorded.',
             '- canvas://memory — the project memory index (LLM-generated context).',

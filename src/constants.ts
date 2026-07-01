@@ -122,6 +122,17 @@ export const MAX_CARD_ID = 200
 export const MAX_COLUMN_ID = 200
 
 /**
+ * Read-projection count caps for the `canvas://board/{id}/cards` resource (P3b) — bound one board's
+ * mirrored kanban projection so a forged `mcp:boards` push can't grow MAIN memory. The card FIELD
+ * caps reuse `MAX_CARD_*` above. The HOST (`boardRegistry.ts`) keeps its OWN local copies of these
+ * numbers — the mirror sanitize can't import this package (it predates the installed version; the
+ * P1b "host does NOT import from an installed package it predates" lesson) — so these are the shared
+ * contract value, enforced authoritatively host-side.
+ */
+export const MAX_KANBAN_COLUMNS = 50
+export const MAX_KANBAN_CARDS = 300
+
+/**
  * Plan-visualization WRITE tool (P5) — orchestrator + connected tiers, **flag-gated** behind the SAME
  * `planningWrite` gate as `add_planning_elements` / the Kanban card tools (all three write
  * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). The agent hands a flat plan (a

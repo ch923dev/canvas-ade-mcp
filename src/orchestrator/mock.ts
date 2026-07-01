@@ -100,6 +100,18 @@ export class MockOrchestrator implements Orchestrator {
     return 'idle'
   }
 
+  async boardCards(boardId: BoardId): Promise<unknown> {
+    // A minimal BoardCards-shaped fixture (a kanban board with one lane + one card) — enough for the
+    // resource read contract to assert the grouped shape. The host's real boardCards groups the live
+    // mirror; a non-kanban board would read `{ …, isKanban: false, columns: [] }`.
+    return {
+      boardId,
+      title: 'Mock kanban',
+      isKanban: true,
+      columns: [{ id: 'backlog', title: 'Backlog', wip: null, cards: [{ id: 'c1', title: 'One' }] }]
+    }
+  }
+
   async boardOutput(_boardId: BoardId, _opts?: { cursor?: number }): Promise<BoardOutput> {
     return { text: '', total: 0, returned: 0, droppedOlder: false }
   }
