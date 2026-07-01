@@ -39,4 +39,17 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       # OIDC: no NODE_AUTH_TOKEN / .npmrc auth. --provenance is explicit (also npm's default under OIDC).
-      - run: npm publish --provenance --access public
+      # A PRERELEASE version (e.g. 0.18.0-rc.1) may NOT publish to the default `latest` dist-tag —
+      # npm >= 11 hard-errors ("must specify a tag using --tag when publishing a prerelease"). Route a
+      # prerelease (version contains `-`) to the `next` dist-tag so `latest` keeps pointing at the
+      # newest STABLE release; a stable version publishes to `latest` as before.
+      - name: publish (prerelease → next, stable → latest)
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease $VERSION → dist-tag next"
+            npm publish --provenance --access public --tag next
+          else
+            echo "stable $VERSION → dist-tag latest"
+            npm publish --provenance --access public
+          fi
