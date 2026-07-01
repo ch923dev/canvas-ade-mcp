@@ -122,6 +122,34 @@ export const MAX_CARD_ID = 200
 export const MAX_COLUMN_ID = 200
 
 /**
+ * Plan-visualization WRITE tool (P5) — orchestrator + connected tiers, **flag-gated** behind the SAME
+ * `planningWrite` gate as `add_planning_elements` / the Kanban card tools (all three write
+ * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). The agent hands a flat plan (a
+ * list of items) + a SUGGESTED shape; the HOST surfaces the upgraded human-confirm gate as a layout
+ * CHOOSER (kanban / grid / checklist / columns), and on approval materializes a NEW board in the shape
+ * the human picked, tidied into open canvas space. The host mints + returns the board id. Passive
+ * content — the board renders, never auto-arms an action ("this only draws").
+ */
+export const TOOL_VISUALIZE_PLAN = 'visualize_plan'
+
+/** The layout shapes `visualize_plan` may render a plan into (the confirm-gate chooser options). */
+export const VISUALIZATIONS = ['kanban', 'grid', 'checklist', 'columns'] as const
+
+/**
+ * Transport-layer caps for one `visualize_plan` call (defence in depth — the HOST re-validates +
+ * re-caps + sanitizes authoritatively before the confirm gate). A plan item carries a short title +
+ * optional single-line status/tag/assignee chips + an optional multi-line note; `status` groups items
+ * into kanban columns / `columns` sections. `MAX_PLAN_TITLE` bounds the new board's display name.
+ */
+export const MAX_PLAN_ITEMS = 100
+export const MAX_PLAN_ITEM_TITLE = 200
+export const MAX_PLAN_ITEM_STATUS = 60
+export const MAX_PLAN_ITEM_TAG = 40
+export const MAX_PLAN_ITEM_ASSIGNEE = 40
+export const MAX_PLAN_ITEM_NOTE = 2000
+export const MAX_PLAN_TITLE = 200
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward

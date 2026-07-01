@@ -190,6 +190,40 @@ export interface KanbanCardPatch {
   ref?: string
 }
 
+/** The layout shapes `visualize_plan` (P5) can render a plan into — the confirm-gate chooser options. */
+export type Visualization = 'kanban' | 'grid' | 'checklist' | 'columns'
+
+/**
+ * One item of a flat plan an agent hands to `visualize_plan` (P5) — CONTENT only. The host sanitizes
+ * every field, groups items by `status` into kanban columns / `columns` sections (first-appearance
+ * order), and materializes them into the chosen board shape. Only `title` is required. 🔒 Untrusted
+ * passive content — it renders on the new board, never auto-arms an action.
+ */
+export interface PlanItem {
+  /** The item headline (the card / note / checklist-row title). */
+  title: string
+  /** Status/stage bucket — groups items into kanban columns or `columns` sections (e.g. 'backlog', 'in progress', 'done'). Absent ⇒ a default lane. */
+  status?: string
+  /** Free-text type chip (e.g. 'feature', 'research'). */
+  tag?: string
+  /** Assignee agent-preset id (e.g. 'claude', 'codex') — the card dot on a kanban board. */
+  assignee?: string
+  /** Optional longer note body (rendered under the title on grid/columns notes; ignored by kanban/checklist). */
+  note?: string
+}
+
+/**
+ * The plan an agent hands to `visualize_plan` (P5). `items` is the flat plan; `suggested` is the shape
+ * the agent proposes from the content (the host preselects it in the chooser, but the HUMAN picks the
+ * final shape); `title` names the new board. The host validates + sanitizes + caps everything, shows
+ * the plan + the chooser in a mandatory human confirm, and only on approval creates the board.
+ */
+export interface VisualizePlanSpec {
+  items: PlanItem[]
+  suggested?: Visualization
+  title?: string
+}
+
 /**
  * The members a {@link Orchestrator.spawnGroup} cluster may carry (terminal is always present).
  * STRUCTURAL MIRROR of the host's `SpawnGroupInput` (`src/main/mcpLifecycle.ts`) — the host owns the
@@ -276,6 +310,15 @@ export interface Orchestrator {
    * target or an unknown card id.
    */
   removeCard(boardId: BoardId, cardId: BoardId): Promise<void>
+  /**
+   * 🔒 Visualize a flat plan as a NEW board (P5). Orchestrator/connected-tier, flag-gated
+   * (`planningWrite`). The host validates + sanitizes + caps the plan, then surfaces the UPGRADED
+   * human-confirm gate as a layout CHOOSER — kanban / grid / checklist / columns — preselecting the
+   * agent's `suggested` shape. On approval it materializes a NEW board in the shape the human picked,
+   * tidied into open canvas space, MINTS + returns the board id, and audits the outcome. Declined ⇒
+   * nothing is drawn. The content is untrusted passive context — the board renders, never runs.
+   */
+  visualizePlan(spec: VisualizePlanSpec): Promise<{ id: BoardId }>
   /**
    * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
    * supplied fields change; the host filters to the board type's patchable keys.

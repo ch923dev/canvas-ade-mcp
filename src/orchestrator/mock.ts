@@ -12,7 +12,8 @@ import type {
   Orchestrator,
   PlanningElementsSpec,
   SpawnGroupInput,
-  SpawnGroupResult
+  SpawnGroupResult,
+  VisualizePlanSpec
 } from './Orchestrator'
 
 /** A no-op Orchestrator for contract tests and standalone runs. */
@@ -43,6 +44,10 @@ export class MockOrchestrator implements Orchestrator {
   async updateCard(_boardId: BoardId, _cardId: BoardId, _patch: KanbanCardPatch): Promise<void> {}
 
   async removeCard(_boardId: BoardId, _cardId: BoardId): Promise<void> {}
+
+  async visualizePlan(_spec: VisualizePlanSpec): Promise<{ id: BoardId }> {
+    return { id: 'mock-board' }
+  }
 
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 

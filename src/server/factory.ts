@@ -12,6 +12,7 @@ import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
 import { registerAddPlanningElements } from './tools/addPlanningElements'
 import { registerKanbanCards } from './tools/kanbanCards'
+import { registerVisualizePlan } from './tools/visualizePlan'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
@@ -96,6 +97,9 @@ export class ServerFactory {
         // 🔒 Kanban card writes (P3) — same content-write gate as add_planning_elements (a Kanban
         // board is a plan surface). add/move/update/remove a card; each op is host-confirmed.
         registerKanbanCards(server, this.orchestrator)
+        // 🔒 Visualize plan (P5) — the upgraded content-write gate: propose a flat plan, the host
+        // surfaces a layout chooser (kanban/grid/checklist/columns) + creates the chosen board.
+        registerVisualizePlan(server, this.orchestrator)
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
@@ -132,6 +136,7 @@ export class ServerFactory {
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
         registerKanbanCards(server, this.orchestrator)
+        registerVisualizePlan(server, this.orchestrator)
       }
       // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
