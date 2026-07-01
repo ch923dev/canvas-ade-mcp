@@ -272,6 +272,16 @@ export interface Orchestrator {
    */
   describeApp(): Promise<unknown>
   /**
+   * Assemble the read-only SPATIAL digest of the canvas (P1b) — the union bounding box, each placed
+   * board's world-space geometry (+ group membership), overlapping pairs, and a coarse arrangement
+   * (`row`/`column`/`grid`/`scattered`) — so an orchestrator agent can reason about the layout
+   * (whether to tidy, which orientation to propose, where a new plan lands) instead of raw
+   * coordinates. Orchestrator-tier, read-only. Wraps the host's `buildLayoutDigest` over the loopback
+   * wire; serialized as JSON by the `canvas://layout` resource. Typed `unknown` here: the
+   * `LayoutDigest` shape is host-owned (the package does not model it), mirroring `describeApp`.
+   */
+  describeLayout(): Promise<unknown>
+  /**
    * 🔒 Spawn a feature-zone CLUSTER (C2-wire / PR-5c) — a terminal board (always) plus an optional
    * planning + browser member, grouped under a Named Group, in ONE cap-checked step. Orchestrator-
    * tier only (bounds swarm growth). Content-less (empty boards), so it is cap-checked, NOT human-

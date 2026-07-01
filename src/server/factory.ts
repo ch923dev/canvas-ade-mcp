@@ -5,6 +5,7 @@ import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
 import { registerAppModelResource } from '../resources/appModel'
+import { registerLayoutResource } from '../resources/layout'
 import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
@@ -107,6 +108,10 @@ export class ServerFactory {
       // in registerBoardResources, which serves both tiers) so it is absent from a worker/connected
       // resources/list. The catalog/cap/TTL it exposes are of no use to a non-orchestrator.
       registerAppModelResource(server, this.orchestrator)
+      // canvas://layout (P1b) — read-only spatial digest (bbox/geometry/overlaps/arrangement).
+      // Orchestrator-tier, registered beside app-model (both are orchestrator planning fuel, absent
+      // from a worker/connected resources/list). The digest is host-computed (buildLayoutDigest).
+      registerLayoutResource(server, this.orchestrator)
       // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
       disposers.push(registerBarrierTools(server, this.orchestrator))
     } else if (ctx.tier === 'connected') {

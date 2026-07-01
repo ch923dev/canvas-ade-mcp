@@ -63,6 +63,13 @@ export class MockOrchestrator implements Orchestrator {
     }
   }
 
+  async describeLayout(): Promise<unknown> {
+    // A minimal LayoutDigest-shaped object — enough for the resource read contract to assert the
+    // top-level key set ({ version, count, bbox, boards, overlaps, arrangement }). The host's real
+    // describeLayout injects the live geometry + runs buildLayoutDigest.
+    return { version: 1, count: 0, bbox: null, boards: [], overlaps: [], arrangement: 'empty' }
+  }
+
   async spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult> {
     return {
       groupId: 'mock-group',
