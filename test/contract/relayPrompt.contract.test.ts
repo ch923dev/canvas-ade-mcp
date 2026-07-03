@@ -12,7 +12,11 @@ const TOOL = 'relay_prompt'
 /** Records every relayPrompt call, to prove wiring (relayPrompt returns void). */
 class SpyOrchestrator extends MockOrchestrator {
   relayed: Array<{ sourceId: string; targetId: string; text: string }> = []
-  override async relayPrompt(sourceId: BoardId, targetId: BoardId, text: string): Promise<void> {
+  override async relayPrompt(
+    sourceId: BoardId,
+    targetId: BoardId,
+    text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {
     this.relayed.push({ sourceId, targetId, text })
   }
 }
@@ -160,5 +164,41 @@ describe('relay_prompt tool (T4.6, agent-to-agent dispatch over a connector)', (
       expect(orch.relayed).toEqual([{ sourceId: 'board-A', targetId: 'board-B', text: 'ok' }])
       await client.close()
     })
+  })
+
+  it('surfaces a delivery WARNING when the host resolves { delivery: "unconfirmed" } (rc.6)', async () => {
+    class UnconfirmedOrch extends SpyOrchestrator {
+      override async relayPrompt(
+        sourceId: BoardId,
+        targetId: BoardId,
+        text: string
+      ): Promise<{ delivery: 'ready' | 'unconfirmed' }> {
+        await super.relayPrompt(sourceId, targetId, text)
+        return { delivery: 'unconfirmed' }
+      }
+    }
+    const orch = new UnconfirmedOrch()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'run the build' }
+    })
+    expect(res.isError).toBeFalsy()
+    expect(JSON.stringify(res)).toMatch(/WARNING: delivery unconfirmed/)
+    await client.close()
+  })
+
+  it('a void-resolving (pre-rc.6) host keeps the legacy confirmed ack text', async () => {
+    const orch = new SpyOrchestrator() // relayPrompt resolves undefined
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { sourceId: 'A', targetId: 'B', prompt: 'run the build' }
+    })
+    expect(res.isError).toBeFalsy()
+    const text = JSON.stringify(res)
+    expect(text).toMatch(/relayed A/)
+    expect(text).not.toMatch(/WARNING/)
+    await client.close()
   })
 })

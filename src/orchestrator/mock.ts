@@ -27,6 +27,7 @@ export class MockOrchestrator implements Orchestrator {
     prompt?: string
     cwd?: string
     title?: string
+    sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }> {
     return { id: 'mock-board' }
   }
@@ -51,13 +52,20 @@ export class MockOrchestrator implements Orchestrator {
 
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 
-  async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
+  async dispatchPrompt(
+    _boardId: BoardId,
+    _text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {}
 
   async writeResult(_boardId: BoardId, _result: BoardResultInput): Promise<void> {}
 
   async interrupt(_boardId: BoardId): Promise<void> {}
 
-  async relayPrompt(_sourceId: BoardId, _targetId: BoardId, _text: string): Promise<void> {}
+  async relayPrompt(
+    _sourceId: BoardId,
+    _targetId: BoardId,
+    _text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {}
 
   async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
     return { present: false }

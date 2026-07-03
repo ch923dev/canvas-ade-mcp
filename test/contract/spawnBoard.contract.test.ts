@@ -11,12 +11,19 @@ const TOOL = 'spawn_board'
 
 /** Records every spawnBoard call and returns a fixed id, to prove wiring + validation. */
 class SpyOrchestrator extends MockOrchestrator {
-  calls: Array<{ type: string; prompt?: string; cwd?: string; title?: string }> = []
+  calls: Array<{
+    type: string
+    prompt?: string
+    cwd?: string
+    title?: string
+    sourceBoardId?: string
+  }> = []
   override async spawnBoard(input: {
     type: string
     prompt?: string
     cwd?: string
     title?: string
+    sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }> {
     this.calls.push(input)
     return { id: 'board-xyz' }
@@ -48,14 +55,74 @@ describe('spawn_board tool (T3.1, lifecycle write)', () => {
     await client.close()
   })
 
-  it('passes through prompt + cwd to the adapter', async () => {
+  it('passes through prompt + cwd to the adapter for a TERMINAL, with the queued note (rc.6)', async () => {
     const orch = new SpyOrchestrator()
     const client = await connectInMemory('orchestrator', orch)
-    await client.callTool({
+    const res = await client.callTool({
       name: TOOL,
-      arguments: { type: 'browser', prompt: 'run dev', cwd: '/repo' }
+      arguments: { type: 'terminal', prompt: 'run dev', cwd: '/repo' }
     })
-    expect(orch.calls).toEqual([{ type: 'browser', prompt: 'run dev', cwd: '/repo' }])
+    expect(orch.calls).toEqual([{ type: 'terminal', prompt: 'run dev', cwd: '/repo' }])
+    // content[0] stays the bare id (back-compat); a prompt-carrying spawn appends the honest
+    // "queued, boots asynchronously" note so the agent never reads success as "already ran".
+    const content = (res as { content: Array<{ text: string }> }).content
+    expect(content[0]?.text).toBe('board-xyz')
+    expect(content[1]?.text).toMatch(/launch command queued/i)
+    await client.close()
+  })
+
+  it('a prompt-less spawn returns ONLY the bare id (no queued note)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({ name: TOOL, arguments: { type: 'terminal' } })
+    expect((res as { content: unknown[] }).content).toHaveLength(1)
+    await client.close()
+  })
+
+  it('rejects prompt/cwd on a NON-terminal board WITHOUT spawning (rc.6 — was a silent no-op)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const withPrompt = await client.callTool({
+      name: TOOL,
+      arguments: { type: 'browser', prompt: 'run dev' }
+    })
+    const withCwd = await client.callTool({
+      name: TOOL,
+      arguments: { type: 'planning', cwd: '/repo' }
+    })
+    expect(withPrompt.isError).toBe(true)
+    expect(withCwd.isError).toBe(true)
+    expect(orch.calls).toEqual([]) // rejected BEFORE the adapter — no orphan board
+    await client.close()
+  })
+
+  it('rejects an over-long prompt WITHOUT spawning (wire-level 400 cap, rc.6)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { type: 'terminal', prompt: 'x'.repeat(401) }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('a CONNECTED-tier spawn carries its token-derived boardId as sourceBoardId (auto-cable, rc.6)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('connected', orch, 'my-consented-term')
+    await client.callTool({ name: TOOL, arguments: { type: 'terminal', prompt: 'claude' } })
+    expect(orch.calls).toEqual([
+      { type: 'terminal', prompt: 'claude', sourceBoardId: 'my-consented-term' }
+    ])
+    await client.close()
+  })
+
+  it('an ORCHESTRATOR-tier spawn carries NO sourceBoardId (the app board needs no cable)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'app')
+    await client.callTool({ name: TOOL, arguments: { type: 'terminal' } })
+    expect(orch.calls).toEqual([{ type: 'terminal' }])
     await client.close()
   })
 

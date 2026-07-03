@@ -264,12 +264,25 @@ export interface Orchestrator {
    * carries instead of the per-type default ('Terminal'/'Planning'/…); the host collapses
    * whitespace, strips control chars, and clamps it (it lands verbatim in later human-confirm
    * modal bodies). Absent/empty ⇒ the host's per-type default title.
+   *
+   * TERMINAL-ONLY (0.18.0-rc.6 — the semantics are now REAL, not deferred): `prompt` is a single
+   * command line the new terminal runs as its FIRST PTY line on spawn (an exec vector — the host
+   * sanitizes to one line, strips control chars, clamps to 400); `cwd` is the spawn working
+   * directory (never executed; a missing/invalid path falls back to the user's home directory).
+   * The host REJECTS prompt/cwd on a non-terminal type before any board is created.
+   *
+   * `sourceBoardId` (rc.6, auto-cable): the token-derived board id of a CONNECTED-tier caller —
+   * the tool passes `ctx.boardId` (unforgeable), never client input. The host then creates the
+   * spawned board AND a directed orchestration connector spawner→spawned in the same step, so the
+   * spawning agent can immediately `relay_prompt` follow-up tasks into the terminal it spawned
+   * (the cable stays visible/deletable on canvas; every relay still pays the human confirm).
    */
   spawnBoard(input: {
     type: string
     prompt?: string
     cwd?: string
     title?: string
+    sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }>
   /**
    * Close a board (T3.2). The host drains the board's PTY gracefully (not an abrupt
@@ -324,7 +337,17 @@ export interface Orchestrator {
    * supplied fields change; the host filters to the board type's patchable keys.
    */
   configureBoard(boardId: BoardId, config: BoardConfig): Promise<void>
-  dispatchPrompt(boardId: BoardId, text: string): Promise<void>
+  /**
+   * Fire-and-forget dispatch into a terminal's PTY (assign_prompt). From 0.18.0-rc.6 a host may
+   * resolve with a delivery verdict — `'ready'` = the write landed in a readiness-confirmed REPL;
+   * `'unconfirmed'` = written, but the target never showed boot-quiet before the host's readiness
+   * backstop (delivery not guaranteed — verify via the board output). The `void` arm keeps
+   * pre-rc.6 hosts (which resolve undefined) valid; tools treat undefined as 'ready' (legacy).
+   */
+  dispatchPrompt(
+    boardId: BoardId,
+    text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void>
   /**
    * 🔒 Record the calling worker's OWN board result (M4 T4.4, worker-tier WRITE). The
    * `boardId` is the caller's token-bound board (never client-supplied), so a worker can
@@ -343,9 +366,15 @@ export interface Orchestrator {
    * `targetId`, expressed by an ORCHESTRATION connector `sourceId → targetId` (the cable
    * is the route + intent). Orchestrator-tier only. The host validates the directed edge
    * exists and is **terminal → terminal** (never Browser → PTY), then gates the write
-   * behind a single-use nonce + a mandatory human confirm + an audit entry. Fire-and-forget.
+   * behind a single-use nonce + a mandatory human confirm + an audit entry. Fire-and-forget;
+   * from 0.18.0-rc.6 a host may resolve with the same delivery verdict as
+   * {@link Orchestrator.dispatchPrompt} (the `void` arm keeps pre-rc.6 hosts valid).
    */
-  relayPrompt(sourceId: BoardId, targetId: BoardId, text: string): Promise<void>
+  relayPrompt(
+    sourceId: BoardId,
+    targetId: BoardId,
+    text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void>
   /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier

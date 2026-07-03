@@ -86,8 +86,9 @@ export class ServerFactory {
         async () => ({ content: [{ type: 'text', text: 'orchestrator-pong' }] })
       )
       // Lifecycle write tools (Phase 3+). `spawn_board` gains the optional planning `seed`
-      // only when the host enables the S2 write path (the same flag below).
-      registerSpawnBoard(server, this.orchestrator, { planningWrite })
+      // only when the host enables the S2 write path (the same flag below). ctx rides along for
+      // the rc.6 auto-cable (a no-op at this tier — only a `connected` caller mints a cable).
+      registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
       registerCloseBoard(server, this.orchestrator)
       registerConfigureBoard(server, this.orchestrator)
       // 🔒 Planning content write (S2) — flag-gated, orchestrator-tier. Absent from
@@ -136,7 +137,10 @@ export class ServerFactory {
       // host's per-action ConfirmModal; relay additionally requires a directed orchestration
       // cable AND is scoped to this board as source (see registerRelayPrompt). The capability
       // split is structural — a connected board's tools/list never even contains the omitted tools.
-      registerSpawnBoard(server, this.orchestrator, { planningWrite })
+      // ctx rides along: a connected caller's token-derived boardId becomes the spawn's
+      // sourceBoardId → the host auto-creates the spawner→spawned orchestration cable (rc.6),
+      // so a follow-up relay_prompt into the freshly-spawned terminal is already authorized.
+      registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
       registerConfigureBoard(server, this.orchestrator)
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)

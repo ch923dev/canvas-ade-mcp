@@ -32,8 +32,15 @@ export function registerAssignPrompt(server: McpServer, orchestrator: Orchestrat
       }
     },
     async (args) => {
-      await orchestrator.dispatchPrompt(args.boardId, args.prompt)
-      return { content: [{ type: 'text', text: `assigned prompt to ${args.boardId}` }] }
+      // rc.6 honest ack: a readiness-gated host resolves { delivery }; a pre-rc.6 host resolves
+      // undefined (treated as the legacy confirmed path). 'unconfirmed' = the write landed but
+      // the target never showed boot-quiet before the host's readiness backstop.
+      const ack = await orchestrator.dispatchPrompt(args.boardId, args.prompt)
+      const text =
+        ack?.delivery === 'unconfirmed'
+          ? `assigned prompt to ${args.boardId} — WARNING: delivery unconfirmed (the target may still be booting; verify via the board output before assuming the task started)`
+          : `assigned prompt to ${args.boardId}`
+      return { content: [{ type: 'text', text }] }
     }
   )
 }

@@ -1,7 +1,13 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator, PlanningElementSpec } from '../../orchestrator/Orchestrator'
-import { SPAWN_BOARD_MAX_TITLE, SPAWNABLE_BOARD_TYPES, TOOL_SPAWN_BOARD } from '../../constants'
+import type { SessionCtx } from '../factory'
+import {
+  SPAWN_BOARD_MAX_PROMPT,
+  SPAWN_BOARD_MAX_TITLE,
+  SPAWNABLE_BOARD_TYPES,
+  TOOL_SPAWN_BOARD
+} from '../../constants'
 import { planningElementsArraySchema } from './addPlanningElements'
 
 /**
@@ -25,11 +31,14 @@ import { planningElementsArraySchema } from './addPlanningElements'
 export function registerSpawnBoard(
   server: McpServer,
   orchestrator: Orchestrator,
-  opts: { planningWrite?: boolean } = {}
+  opts: { planningWrite?: boolean; ctx?: SessionCtx } = {}
 ): void {
   const inputSchema = {
     type: z.enum(SPAWNABLE_BOARD_TYPES),
-    prompt: z.string().optional(),
+    // rc.6: prompt is the TERMINAL's spawn-time launch command (first PTY line). The host
+    // re-sanitizes + re-clamps authoritatively; the wire `.max` rejects an oversize prompt
+    // before the host is called (the write_result C3 discipline).
+    prompt: z.string().max(SPAWN_BOARD_MAX_PROMPT).optional(),
     cwd: z.string().optional(),
     // 2b: optional display name for the new board (else the host's per-type default). The host
     // re-sanitizes + re-clamps; the wire `.max` rejects an over-long title before the host is called.
@@ -42,7 +51,13 @@ export function registerSpawnBoard(
     {
       description:
         'Create a new board on the canvas. type is one of terminal | browser | planning. ' +
-        'Optional prompt (terminal launch command / agent task) and cwd (working directory). ' +
+        'Terminal only: optional prompt — a SINGLE command line the new terminal runs as its ' +
+        'first PTY line on spawn (e.g. an agent CLI like `claude`; the host sanitizes it to one ' +
+        'line, strips control chars, and clamps to 400) — and optional cwd (spawn working ' +
+        'directory; a missing/invalid path falls back to the user home directory; never ' +
+        'executed). prompt/cwd with a non-terminal type is an error (no board is created). ' +
+        'The launched agent boots ASYNCHRONOUSLY — deliver its task via assign_prompt / ' +
+        'relay_prompt, which wait for the terminal to be ready. ' +
         'Optional title: a short display name for the new board (else a generic per-type default). ' +
         (opts.planningWrite
           ? 'Optional seed (planning only): structured elements to populate the new board in one ' +
@@ -61,11 +76,29 @@ export function registerSpawnBoard(
           content: [{ type: 'text', text: 'spawn_board: seed is only valid for a planning board' }]
         }
       }
+      // rc.6: prompt/cwd are terminal-only — reject a mismatch at the wire too (defense in depth
+      // over the host's own pre-side-effect gate), mirroring the seed check above.
+      if ((args.prompt !== undefined || args.cwd !== undefined) && args.type !== 'terminal') {
+        return {
+          isError: true,
+          content: [
+            { type: 'text', text: 'spawn_board: prompt/cwd are only valid for a terminal board' }
+          ]
+        }
+      }
       const { id } = await orchestrator.spawnBoard({
         type: args.type,
         prompt: args.prompt,
         cwd: args.cwd,
-        title: args.title
+        title: args.title,
+        // 🔒 Auto-cable (rc.6): a CONNECTED-tier terminal spawning a board passes its own
+        // token-derived id — never client input, so it cannot be forged — and the host creates a
+        // directed orchestration connector spawner→spawned alongside the board, authorizing
+        // follow-up relay_prompt calls into it. Orchestrator-tier spawns pass nothing (the 'app'
+        // command board dispatches via assign/handoff, which need no cable).
+        ...(opts.ctx?.tier === 'connected' && opts.ctx.boardId
+          ? { sourceBoardId: opts.ctx.boardId }
+          : {})
       })
       // Apply the seed through the SAME confirmed write path as add_planning_elements. A
       // decline throws there → surface it as an isError result (the board still exists, just
@@ -87,7 +120,22 @@ export function registerSpawnBoard(
           }
         }
       }
-      return { content: [{ type: 'text', text: id }] }
+      // content[0] stays the bare id (back-compat with okText-style parsers + existing e2e);
+      // a prompt-carrying spawn appends an honest note — the command is QUEUED as the first PTY
+      // line of an asynchronously-booting terminal, not already executed.
+      return {
+        content: [
+          { type: 'text' as const, text: id },
+          ...(args.prompt
+            ? [
+                {
+                  type: 'text' as const,
+                  text: 'launch command queued: runs as the first line of the new terminal (the agent boots asynchronously — dispatch its task via assign_prompt/relay_prompt)'
+                }
+              ]
+            : [])
+        ]
+      }
     }
   )
 }
