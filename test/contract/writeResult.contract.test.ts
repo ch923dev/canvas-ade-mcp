@@ -42,7 +42,10 @@ describe('write_result tool (T4.4, first worker-tier write)', () => {
     })
     expect(res.isError).toBeFalsy()
     expect(orch.written).toEqual([
-      { id: 'bound-board', result: { status: 'success', summary: 'built ok', refs: ['a.ts', 'b.ts'] } }
+      {
+        id: 'bound-board',
+        result: { status: 'success', summary: 'built ok', refs: ['a.ts', 'b.ts'] }
+      }
     ])
     await client.close()
   })

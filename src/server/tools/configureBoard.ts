@@ -33,7 +33,10 @@ export function registerConfigureBoard(server: McpServer, orchestrator: Orchestr
         return {
           isError: true,
           content: [
-            { type: 'text', text: 'configure_board: at least one of shell/launchCommand/cwd required' }
+            {
+              type: 'text',
+              text: 'configure_board: at least one of shell/launchCommand/cwd required'
+            }
           ]
         }
       }

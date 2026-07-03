@@ -33,7 +33,9 @@ export function registerMemoryResources(server: McpServer, orchestrator: Orchest
     async (uri, variables) => {
       const id = Array.isArray(variables.id) ? variables.id[0] : variables.id
       if (!id) throw new Error('canvas://board/{id}/summary: missing board id')
-      return { contents: [{ uri: uri.href, text: JSON.stringify(await orchestrator.boardSummary(id)) }] }
+      return {
+        contents: [{ uri: uri.href, text: JSON.stringify(await orchestrator.boardSummary(id)) }]
+      }
     }
   )
 }

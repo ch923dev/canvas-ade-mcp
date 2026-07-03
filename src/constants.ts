@@ -197,6 +197,15 @@ export const SPAWNABLE_BOARD_TYPES = ['terminal', 'browser', 'planning'] as cons
 export const SPAWN_BOARD_MAX_TITLE = 80
 
 /**
+ * Max chars for an optional `spawn_board` prompt (rc.6) — the single command line the new
+ * TERMINAL runs as its first PTY line. Mirrors the host's shared 400-char spawn-time
+ * launchCommand clamp (`mcpLifecycle.ts` SPAWN_LAUNCH_MAX, the same rule `spawn_group` pays);
+ * the host re-sanitizes + re-clamps authoritatively — this is the wire-level guard so an
+ * over-long prompt is rejected before the host is called.
+ */
+export const SPAWN_BOARD_MAX_PROMPT = 400
+
+/**
  * Hard cap on the chars returned by ONE `canvas://board/{id}/output` page (T1.4 🔒).
  * The MCP output budget is ~25k; we never emit a larger page even if the host
  * over-returns. MUST match the app accessor's page size (`MAX_OUTPUT_PAGE` in
