@@ -10,6 +10,7 @@ import type {
   KanbanCardSpec,
   MemoryDoc,
   Orchestrator,
+  PlanningElementPatch,
   PlanningElementsSpec,
   SpawnGroupInput,
   SpawnGroupResult,
@@ -35,6 +36,14 @@ export class MockOrchestrator implements Orchestrator {
   async closeBoard(_boardId: BoardId): Promise<void> {}
 
   async addPlanningElements(_boardId: BoardId, _spec: PlanningElementsSpec): Promise<void> {}
+
+  async updatePlanningElement(
+    _boardId: BoardId,
+    _elementId: string,
+    _patch: PlanningElementPatch
+  ): Promise<void> {}
+
+  async removePlanningElement(_boardId: BoardId, _elementId: string): Promise<void> {}
 
   async addCard(_boardId: BoardId, _spec: KanbanCardSpec): Promise<{ id: BoardId }> {
     return { id: 'mock-card' }
@@ -123,6 +132,25 @@ export class MockOrchestrator implements Orchestrator {
       title: 'Mock kanban',
       isKanban: true,
       columns: [{ id: 'backlog', title: 'Backlog', wip: null, cards: [{ id: 'c1', title: 'One' }] }]
+    }
+  }
+
+  async boardPlanning(boardId: BoardId): Promise<unknown> {
+    // A minimal BoardPlanning-shaped fixture (a planning board with one checklist carrying one item) —
+    // enough for the resource read contract to assert the shape. The host's real boardPlanning projects
+    // the live board elements; a non-planning board would read `{ …, isPlanning: false, elements: [] }`.
+    return {
+      boardId,
+      title: 'Mock planning',
+      isPlanning: true,
+      elements: [
+        {
+          id: 'el-1',
+          kind: 'checklist',
+          title: 'Build progress',
+          items: [{ id: 'it-1', label: 'Wire the read loop', done: false }]
+        }
+      ]
     }
   }
 

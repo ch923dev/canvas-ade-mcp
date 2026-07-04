@@ -164,6 +164,45 @@ export interface PlanningElementsSpec {
   elements: PlanningElementSpec[]
 }
 
+/** One checklist item EDIT (S6) — target an existing item by `id` (from the read resource); set its
+ *  `label` (relabel) and/or `done` (tick/untick). Both value fields optional; at least one is applied. */
+export interface PlanningChecklistItemEdit {
+  id: string
+  label?: string
+  done?: boolean
+}
+
+/** One checklist item to APPEND (S6) — a fresh label + optional initial done state (host mints its id). */
+export interface PlanningChecklistItemAdd {
+  label: string
+  done?: boolean
+}
+
+/**
+ * The in-place edit an agent applies to ONE existing planning element (S6) via `update_planning_element`.
+ * A FLAT patch (like {@link KanbanCardPatch}) — the host resolves the element by id, then applies ONLY
+ * the fields valid for its resolved `kind` and REJECTS a field that doesn't apply (a `source` on a note,
+ * etc.). All fields optional; the host requires at least one. Field → kind:
+ * - `text` — a note or free-text element's body.
+ * - `tint` — a note's tint.
+ * - `title` — a checklist's heading.
+ * - `source` — a diagram's Mermaid source.
+ * - `dx`/`dy` — an arrow's board-local delta (both applied together).
+ * - `setItems` / `addItems` / `removeItemIds` — a checklist's items (edit by id / append / remove by id).
+ * 🔒 Untrusted passive content — an edited element renders, never auto-arms an action.
+ */
+export interface PlanningElementPatch {
+  text?: string
+  tint?: PlanningNoteTint
+  title?: string
+  source?: string
+  dx?: number
+  dy?: number
+  setItems?: PlanningChecklistItemEdit[]
+  addItems?: PlanningChecklistItemAdd[]
+  removeItemIds?: string[]
+}
+
 /**
  * The content an agent supplies to add ONE Kanban card (P3) — CONTENT only. The host mints the card
  * id, appends it to the target column, sanitizes every text field, and re-validates before it lands.
@@ -300,6 +339,25 @@ export interface Orchestrator {
    */
   addPlanningElements(boardId: BoardId, spec: PlanningElementsSpec): Promise<void>
   /**
+   * 🔒 Edit ONE existing planning element in place (S6) — the read-then-update loop that closes the
+   * append-only gap. Orchestrator/connected-tier, flag-gated (`planningWrite`). The host resolves the
+   * element by id on a PLANNING board, validates + sanitizes + caps the patch AGAINST the element's
+   * resolved kind (rejecting a field that doesn't apply), shows the change in a mandatory write-time
+   * human confirm, and only on approval applies it via the command channel as one undoable edit.
+   * Rejects a non-planning target, an unknown element id, or a patch with no applicable field.
+   */
+  updatePlanningElement(
+    boardId: BoardId,
+    elementId: string,
+    patch: PlanningElementPatch
+  ): Promise<void>
+  /**
+   * 🔒 Remove ONE planning element by id (S6) — destructive, so human-confirmed. Orchestrator/connected-
+   * tier, flag-gated. Also the way to clean up a stray duplicate an older append-only agent left behind.
+   * Rejects a non-planning target or an unknown element id.
+   */
+  removePlanningElement(boardId: BoardId, elementId: string): Promise<void>
+  /**
    * 🔒 Add ONE card to a KANBAN board's column (P3). Orchestrator/connected-tier, flag-gated
    * (`planningWrite` — a Kanban board is a plan surface). The host MINTS the card id, resolves +
    * kanban-checks the target, validates + sanitizes + caps the content, shows it in a mandatory
@@ -433,6 +491,15 @@ export interface Orchestrator {
    * `describeApp` / `describeLayout`; the resource just serializes it as JSON.
    */
   boardCards(boardId: BoardId): Promise<unknown>
+  /**
+   * Read one PLANNING board's elements + their ids (S6, read-only) — the READ half of the update loop,
+   * so an agent can SEE each element's id + editable content before it mutates them
+   * (update/remove_planning_element). Served as `canvas://board/{id}/planning` for BOTH tiers
+   * (observation is safe). A non-planning board reads the graceful shell `{ …, isPlanning: false,
+   * elements: [] }` (an agent may probe any id — it never throws for a wrong type). Typed `unknown` here:
+   * the projection shape is host-owned (the package does not model it), mirroring `boardCards`.
+   */
+  boardPlanning(boardId: BoardId): Promise<unknown>
   /**
    * Read one capped page of a board's scrollback (T1.4, read-only). `cursor` is the
    * tail-anchored offset from a prior page's `nextCursor`; omit for the newest tail.

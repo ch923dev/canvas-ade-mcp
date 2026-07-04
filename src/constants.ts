@@ -97,6 +97,32 @@ export const MAX_PLANNING_DIAGRAM = 4000
 export const MAX_PLANNING_SECTION = 60
 
 /**
+ * Planning-element UPDATE / REMOVE tools (S6) — orchestrator + connected tiers, **flag-gated** behind
+ * the SAME `planningWrite` gate as `add_planning_elements` (all mutate content on the durable canvas,
+ * ADR 0003). They close the append-only gap: an agent READS `canvas://board/{id}/planning` to learn
+ * each element's id, then EDITS it in place (`update_planning_element`) or deletes it
+ * (`remove_planning_element`) — instead of re-adding a fresh copy (which stacks stale duplicates). Each
+ * op is gated by the HOST behind a mandatory write-time human confirm + validate/sanitize/cap. Passive
+ * content — an edited element renders on the board, never auto-arms an action.
+ */
+export const TOOL_UPDATE_PLANNING_ELEMENT = 'update_planning_element'
+export const TOOL_REMOVE_PLANNING_ELEMENT = 'remove_planning_element'
+
+/**
+ * Bound on an opaque planning element / checklist-item id an agent echoes back from the read resource
+ * (matched verbatim host-side against the board's `elements[]`). Mirrors {@link MAX_CARD_ID}.
+ */
+export const MAX_PLANNING_ELEMENT_ID = 200
+
+/**
+ * Read-projection element-count cap for the `canvas://board/{id}/planning` resource (S6) — bound one
+ * board's mirrored planning projection so a forged `mcp:boards` push can't grow MAIN memory. Mirrors the
+ * host's `MAX_PLANNING_BOARD_ELEMENTS` accretion cap; the HOST enforces it authoritatively (the mirror
+ * sanitize can't import this package — the P1b "host does NOT import a package it predates" lesson).
+ */
+export const MAX_PLANNING_READ_ELEMENTS = 300
+
+/**
  * Kanban card WRITE tools (P3) — orchestrator + connected tiers, **flag-gated** behind the SAME
  * `planningWrite` gate as `add_planning_elements` (a Kanban board is a plan surface; both write
  * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). Each op is gated by the HOST
