@@ -11,6 +11,7 @@ import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
 import { registerAddPlanningElements } from './tools/addPlanningElements'
+import { registerPlanningEdit } from './tools/planningEdit'
 import { registerKanbanCards } from './tools/kanbanCards'
 import { registerVisualizePlan } from './tools/visualizePlan'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
@@ -96,6 +97,9 @@ export class ServerFactory {
       // content onto the durable canvas, behind a mandatory write-time human confirm).
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        // 🔒 Planning-element update/remove (S6) — the read-then-update loop closing the append-only
+        // gap. Same content-write gate; each op resolves the element by id + is host-confirmed.
+        registerPlanningEdit(server, this.orchestrator)
         // 🔒 Kanban card writes (P3) — same content-write gate as add_planning_elements (a Kanban
         // board is a plan surface). add/move/update/remove a card; each op is host-confirmed.
         registerKanbanCards(server, this.orchestrator)
@@ -144,6 +148,7 @@ export class ServerFactory {
       registerConfigureBoard(server, this.orchestrator)
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        registerPlanningEdit(server, this.orchestrator)
         registerKanbanCards(server, this.orchestrator)
         registerVisualizePlan(server, this.orchestrator)
       }
