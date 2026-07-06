@@ -291,6 +291,30 @@ export interface SpawnGroupResult {
   browserId?: BoardId
 }
 
+/** One dispatch in a `relay_prompts` BATCH — the same {source, target, text} triple as a single relay. */
+export interface RelayItem {
+  sourceId: BoardId
+  targetId: BoardId
+  text: string
+}
+
+/**
+ * Per-item outcome of a `relay_prompts` batch (positionally 1:1 with the input items). `status`:
+ * `'relayed'` = human-approved + written into the target PTY; `'denied'` = the human declined that
+ * row; `'rejected'` = a validation/cable failure that was never confirmed (bad payload, no
+ * `sourceId → targetId` cable, or not terminal → terminal). `delivery` rides back on `'relayed'`
+ * (the same `ready | unconfirmed` verdict as {@link Orchestrator.relayPrompt}); `detail` carries a
+ * short reason on `denied`/`rejected`. Each item is gated independently, so one row's verdict never
+ * changes another's.
+ */
+export interface RelayResult {
+  sourceId: BoardId
+  targetId: BoardId
+  status: 'relayed' | 'denied' | 'rejected'
+  delivery?: 'ready' | 'unconfirmed'
+  detail?: string
+}
+
 /**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
@@ -433,6 +457,15 @@ export interface Orchestrator {
     targetId: BoardId,
     text: string
   ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void>
+  /**
+   * 🔒 BATCH agent-to-agent relay (rc.8) — dispatch several {@link RelayItem}s in ONE host-confirmed
+   * step (the host surfaces ONE per-row approval modal). Orchestrator-tier only. Each item is
+   * validated + gated INDEPENDENTLY host-side (its own directed-cable check, single-use nonce, and
+   * audit row) exactly like {@link Orchestrator.relayPrompt}; the batch shares only the human
+   * confirm, so a denied/rejected row never widens another's approval. Resolves a per-item
+   * {@link RelayResult} array, positionally 1:1 with `items`.
+   */
+  relayPrompts(items: RelayItem[]): Promise<RelayResult[]>
   /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier

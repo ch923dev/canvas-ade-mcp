@@ -20,6 +20,22 @@ export const TOOL_INTERRUPT = 'interrupt'
 export const TOOL_RELAY_PROMPT = 'relay_prompt'
 
 /**
+ * BATCH relay dispatch tool (rc.8) — carry several `relay_prompt` dispatches in ONE call so the
+ * host can surface them in ONE human-confirm modal (per-row approve). Orchestrator + connected
+ * tiers, same tier-aware source binding as `relay_prompt`. Each item stays an INDEPENDENT
+ * dispatch host-side (own cable check, own single-use nonce, own audit row) — the batch shares
+ * only the human confirm, never widening one approval into N commands.
+ */
+export const TOOL_RELAY_PROMPTS = 'relay_prompts'
+
+/**
+ * Max dispatches in ONE `relay_prompts` call (transport-layer cap — the HOST re-validates + re-caps
+ * authoritatively). Kept small: the batch exists to let a human review a handful of related
+ * dispatches at once, not to fan out unbounded writes from a single approval gesture.
+ */
+export const MAX_RELAY_BATCH = 10
+
+/**
  * Phase 4 worker-tier WRITE tool (T4.4) — the FIRST tool a worker may call to mutate
  * state: a worker records its OWN board's structured result. Registered for BOTH tiers
  * and bound to the caller's `ctx.boardId` (a worker can't forge another board's result).

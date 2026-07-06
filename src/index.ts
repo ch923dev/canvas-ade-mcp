@@ -30,6 +30,8 @@ export type {
   PlanningElementSpec,
   PlanningElementsSpec,
   PlanningNoteTint,
+  RelayItem,
+  RelayResult,
   KanbanCardSpec,
   KanbanCardPatch,
   PlanItem,

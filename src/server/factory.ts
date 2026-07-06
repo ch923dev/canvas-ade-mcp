@@ -22,6 +22,7 @@ import { registerGitDiff } from './tools/gitDiff'
 import { registerSpawnGroup } from './tools/spawnGroup'
 import { registerTidyCanvas } from './tools/tidyCanvas'
 import { registerRelayPrompt } from './tools/relayPrompt'
+import { registerRelayPrompts } from './tools/relayPrompts'
 import { registerBarrierTools } from './tools/barriers'
 import { installResourceSubscriptions } from './resourceSubscriptions'
 import { createAttentionNotifier } from './attentionNotifier'
@@ -113,6 +114,9 @@ export class ServerFactory {
       registerInterrupt(server, this.orchestrator)
       // relay_prompt is bound to the designated command orchestrator when one is set (BUG-021).
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // relay_prompts (rc.8) — the batch sibling: N dispatches, ONE per-row human-confirm modal.
+      // Same tier-aware source binding; each item stays an independent host-gated dispatch.
+      registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
       // git_diff (PR-2b) — read-only working-tree diff per board, for the result/recap roll-up.
       registerGitDiff(server, this.orchestrator)
       // spawn_group (C2-wire) — spawn a feature-zone cluster in one cap-checked step. Orchestrator-
@@ -154,6 +158,8 @@ export class ServerFactory {
       }
       // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // relay_prompts (rc.8) — the batch sibling, same own-board source binding applied per item.
+      registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
