@@ -12,6 +12,8 @@ import type {
   Orchestrator,
   PlanningElementPatch,
   PlanningElementsSpec,
+  RelayItem,
+  RelayResult,
   SpawnGroupInput,
   SpawnGroupResult,
   VisualizePlanSpec
@@ -75,6 +77,15 @@ export class MockOrchestrator implements Orchestrator {
     _targetId: BoardId,
     _text: string
   ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {}
+
+  async relayPrompts(items: RelayItem[]): Promise<RelayResult[]> {
+    // No-op: report every item relayed (delivery left unspecified — the legacy 'ready' arm).
+    return items.map((it) => ({
+      sourceId: it.sourceId,
+      targetId: it.targetId,
+      status: 'relayed' as const
+    }))
+  }
 
   async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
     return { present: false }
