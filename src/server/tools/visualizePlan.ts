@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator, PlanItem, Visualization } from '../../orchestrator/Orchestrator'
+import type { SessionCtx } from '../factory'
 import {
   MAX_PLAN_ITEM_ASSIGNEE,
   MAX_PLAN_ITEM_NOTE,
@@ -37,7 +38,11 @@ export const planItemsArraySchema = z.array(planItemSchema).min(1).max(MAX_PLAN_
  * CHOOSER — showing the full plan before it materializes a new board. Passive content: it renders,
  * never auto-arms an action.
  */
-export function registerVisualizePlan(server: McpServer, orchestrator: Orchestrator): void {
+export function registerVisualizePlan(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  opts: { ctx?: SessionCtx } = {}
+): void {
   server.registerTool(
     TOOL_VISUALIZE_PLAN,
     {
@@ -57,16 +62,28 @@ export function registerVisualizePlan(server: McpServer, orchestrator: Orchestra
       }
     },
     async (args) => {
-      const { id } = await orchestrator.visualizePlan({
+      const { id, queuedFor } = await orchestrator.visualizePlan({
         items: args.items as PlanItem[],
         ...(args.suggested !== undefined ? { suggested: args.suggested as Visualization } : {}),
-        ...(args.title !== undefined ? { title: args.title } : {})
+        ...(args.title !== undefined ? { title: args.title } : {}),
+        // 🔒 Cross-project routing (0.18.1): a CONNECTED-tier caller passes its own token-derived
+        // id — never client input, so it cannot be forged — and the host resolves the CALLER'S
+        // project from it, routing the new board there instead of whichever project is foregrounded
+        // (the spawn_board auto-cable discipline). Orchestrator-tier calls pass nothing (the 'app'
+        // command board acts on the active project by design).
+        ...(opts.ctx?.tier === 'connected' && opts.ctx.boardId
+          ? { sourceBoardId: opts.ctx.boardId }
+          : {})
       })
       return {
         content: [
           {
             type: 'text',
-            text: `proposed a ${args.items.length}-item plan; created board ${id} on the canvas`
+            text:
+              queuedFor !== undefined
+                ? `proposed a ${args.items.length}-item plan; board ${id} queued for project ` +
+                  `"${queuedFor}" — it will appear on that project's canvas when it is next opened`
+                : `proposed a ${args.items.length}-item plan; created board ${id} on the canvas`
           }
         ]
       }

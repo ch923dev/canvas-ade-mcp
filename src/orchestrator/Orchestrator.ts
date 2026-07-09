@@ -261,6 +261,15 @@ export interface VisualizePlanSpec {
   items: PlanItem[]
   suggested?: Visualization
   title?: string
+  /**
+   * 🔒 A CONNECTED-tier caller's own token-derived board id — set by the TOOL from `SessionCtx`
+   * (the rc.6 `spawn_board` auto-cable discipline), never client input, so it cannot be forged.
+   * The host resolves the CALLER'S project from it and routes the new board there: a backgrounded
+   * project's agent must not draw onto whichever project happens to be foregrounded. Absent on
+   * orchestrator-tier calls (the 'app' command board always acts on the active project) and on a
+   * host/package predating 0.18.1 (the field is additive — older hosts ignore it).
+   */
+  sourceBoardId?: BoardId
 }
 
 /**
@@ -412,8 +421,13 @@ export interface Orchestrator {
    * agent's `suggested` shape. On approval it materializes a NEW board in the shape the human picked,
    * tidied into open canvas space, MINTS + returns the board id, and audits the outcome. Declined ⇒
    * nothing is drawn. The content is untrusted passive context — the board renders, never runs.
+   *
+   * Cross-project routing (0.18.1): when the caller's own project (resolved from
+   * `spec.sourceBoardId`) is NOT the active one, the host may QUEUE the confirmed board for that
+   * project instead of drawing it on the active canvas — it then resolves `queuedFor` with that
+   * project's display name (the tool surfaces it to the agent). Absent ⇒ landed live.
    */
-  visualizePlan(spec: VisualizePlanSpec): Promise<{ id: BoardId }>
+  visualizePlan(spec: VisualizePlanSpec): Promise<{ id: BoardId; queuedFor?: string }>
   /**
    * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
    * supplied fields change; the host filters to the board type's patchable keys.
