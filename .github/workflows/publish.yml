@@ -32,7 +32,10 @@ jobs:
         with:
           node-version: 22 # resolves to >= 22.14.0, the OIDC floor (no registry-url: OIDC needs no .npmrc auth)
           package-manager-cache: false # v5 defaults this true → it auto-detects pnpm and caches before corepack installs it
-      - run: npm install -g npm@latest # OIDC trusted publishing needs npm CLI >= 11.5.1; Node 22 bundles 10.x
+      # OIDC trusted publishing needs npm CLI >= 11.5.1; Node 22 bundles 10.x. Pinned to 11.x:
+      # npm@latest resolved to 12.0.0 on 2026-07-09 and broke publish on the runner
+      # (MODULE_NOT_FOUND 'sigstore' from libnpmpublish's provenance path — v0.18.1 run 29024870578).
+      - run: npm install -g npm@11.18.0
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
