@@ -106,7 +106,7 @@ export class ServerFactory {
         registerKanbanCards(server, this.orchestrator)
         // 🔒 Visualize plan (P5) — the upgraded content-write gate: propose a flat plan, the host
         // surfaces a layout chooser (kanban/grid/checklist/columns) + creates the chosen board.
-        registerVisualizePlan(server, this.orchestrator)
+        registerVisualizePlan(server, this.orchestrator, { ctx })
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
@@ -154,7 +154,7 @@ export class ServerFactory {
         registerAddPlanningElements(server, this.orchestrator)
         registerPlanningEdit(server, this.orchestrator)
         registerKanbanCards(server, this.orchestrator)
-        registerVisualizePlan(server, this.orchestrator)
+        registerVisualizePlan(server, this.orchestrator, { ctx })
       }
       // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)

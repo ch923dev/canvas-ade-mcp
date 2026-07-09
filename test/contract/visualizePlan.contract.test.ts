@@ -17,9 +17,13 @@ function toolNames(list: { tools: Array<{ name: string }> }): string[] {
 /** Captures the visualize call so the test can assert the tool → orchestrator routing + args. */
 class SpyOrchestrator extends MockOrchestrator {
   calls: VisualizePlanSpec[] = []
-  override async visualizePlan(spec: VisualizePlanSpec): Promise<{ id: BoardId }> {
+  /** When set, the spy resolves `queuedFor` (the host's cross-project queue outcome, 0.18.1). */
+  queuedFor?: string
+  override async visualizePlan(
+    spec: VisualizePlanSpec
+  ): Promise<{ id: BoardId; queuedFor?: string }> {
     this.calls.push(spec)
-    return { id: 'board-1' }
+    return { id: 'board-1', ...(this.queuedFor !== undefined ? { queuedFor: this.queuedFor } : {}) }
   }
 }
 
@@ -94,6 +98,36 @@ describe('visualize_plan tool (P5, planningWrite-gated)', () => {
     const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
     await client.callTool({ name: TOOL, arguments: { items: [{ title: 'One thing' }] } })
     expect(orch.calls).toEqual([{ items: [{ title: 'One thing' }] }])
+    await client.close()
+  })
+
+  it('CONNECTED tier passes its token-derived boardId as sourceBoardId (never client input)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('connected', orch, 'term-7', undefined, true)
+    await client.callTool({ name: TOOL, arguments: { items: [{ title: 'One thing' }] } })
+    expect(orch.calls).toEqual([{ items: [{ title: 'One thing' }], sourceBoardId: 'term-7' }])
+    await client.close()
+  })
+
+  it('orchestrator tier passes NO sourceBoardId (the command board acts on the active project)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'app', undefined, true)
+    await client.callTool({ name: TOOL, arguments: { items: [{ title: 'One thing' }] } })
+    expect(orch.calls).toEqual([{ items: [{ title: 'One thing' }] }])
+    await client.close()
+  })
+
+  it('surfaces the host queuedFor outcome — the board was queued for a non-active project', async () => {
+    const orch = new SpyOrchestrator()
+    orch.queuedFor = 'other-project'
+    const client = await connectInMemory('connected', orch, 'term-7', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { items: [{ title: 'One thing' }] }
+    })
+    const text = (res.content as Array<{ text?: string }>).map((c) => c.text ?? '').join('')
+    expect(text).toContain('queued for project "other-project"')
+    expect(text).toContain('board-1')
     await client.close()
   })
 })
