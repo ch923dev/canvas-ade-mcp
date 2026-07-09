@@ -30,9 +30,17 @@ export class MockOrchestrator implements Orchestrator {
     prompt?: string
     cwd?: string
     title?: string
+    url?: string
     sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }> {
     return { id: 'mock-board' }
+  }
+
+  async focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown> {
+    // Echo the host contract shape so the tool's JSON serialization is contract-testable.
+    if (input.boardId) return { focused: 'board', id: input.boardId }
+    if (input.groupId) return { focused: 'group', id: input.groupId }
+    return { focused: 'all' }
   }
 
   async closeBoard(_boardId: BoardId): Promise<void> {}

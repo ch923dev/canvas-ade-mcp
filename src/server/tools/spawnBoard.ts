@@ -5,6 +5,7 @@ import type { SessionCtx } from '../factory'
 import {
   SPAWN_BOARD_MAX_PROMPT,
   SPAWN_BOARD_MAX_TITLE,
+  SPAWN_BOARD_MAX_URL,
   SPAWNABLE_BOARD_TYPES,
   TOOL_SPAWN_BOARD
 } from '../../constants'
@@ -43,6 +44,16 @@ export function registerSpawnBoard(
     // 2b: optional display name for the new board (else the host's per-type default). The host
     // re-sanitizes + re-clamps; the wire `.max` rejects an over-long title before the host is called.
     title: z.string().max(SPAWN_BOARD_MAX_TITLE).optional(),
+    // H3: url is the BROWSER's initial page. http/https enforced at the wire (`.url()` + protocol
+    // refine); the host re-validates authoritatively (the preview URL bar's own rules apply).
+    url: z
+      .string()
+      .max(SPAWN_BOARD_MAX_URL)
+      .url()
+      .refine((u) => u.startsWith('http://') || u.startsWith('https://'), {
+        message: 'url must be http(s)'
+      })
+      .optional(),
     // Only offer `seed` when the host has enabled the planning-write path (S2).
     ...(opts.planningWrite ? { seed: planningElementsArraySchema.optional() } : {})
   }
@@ -58,6 +69,8 @@ export function registerSpawnBoard(
         'executed). prompt/cwd with a non-terminal type is an error (no board is created). ' +
         'The launched agent boots ASYNCHRONOUSLY — deliver its task via assign_prompt / ' +
         'relay_prompt, which wait for the terminal to be ready. ' +
+        'Browser only: optional url — the http(s) page the new browser board loads instead of ' +
+        'the default; url with a non-browser type is an error. ' +
         'Optional title: a short display name for the new board (else a generic per-type default). ' +
         (opts.planningWrite
           ? 'Optional seed (planning only): structured elements to populate the new board in one ' +
@@ -86,11 +99,19 @@ export function registerSpawnBoard(
           ]
         }
       }
+      // H3: url is browser-only — same pre-spawn mismatch discipline as prompt/cwd/seed.
+      if (args.url !== undefined && args.type !== 'browser') {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: 'spawn_board: url is only valid for a browser board' }]
+        }
+      }
       const { id } = await orchestrator.spawnBoard({
         type: args.type,
         prompt: args.prompt,
         cwd: args.cwd,
         title: args.title,
+        url: args.url,
         // 🔒 Auto-cable (rc.6): a CONNECTED-tier terminal spawning a board passes its own
         // token-derived id — never client input, so it cannot be forged — and the host creates a
         // directed orchestration connector spawner→spawned alongside the board, authorizing
