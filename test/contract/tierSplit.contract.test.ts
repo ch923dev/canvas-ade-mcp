@@ -5,6 +5,7 @@ import {
   TOOL_ASSIGN_PROMPT,
   TOOL_CLOSE_BOARD,
   TOOL_CONFIGURE_BOARD,
+  TOOL_FOCUS_VIEWPORT,
   TOOL_GIT_DIFF,
   TOOL_HANDOFF_PROMPT,
   TOOL_INTERRUPT,
@@ -65,7 +66,10 @@ describe('capability tier split', () => {
         TOOL_SPAWN_GROUP,
         // tidy_canvas is orchestrator-only too (P2) — a connected agent must not rearrange
         // everyone else's boards.
-        TOOL_TIDY_CANVAS
+        TOOL_TIDY_CANVAS,
+        // focus_viewport is orchestrator-only (H1) — a connected agent must not yank the
+        // user's camera.
+        TOOL_FOCUS_VIEWPORT
       ]) {
         expect(names).not.toContain(omitted)
       }

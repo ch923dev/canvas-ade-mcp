@@ -221,6 +221,22 @@ export const TOOL_TIDY_CANVAS = 'tidy_canvas'
 export const TIDY_MODES = ['smart', 'by-type', 'grid'] as const
 
 /**
+ * Camera FOCUS tool (H1 / Lane H) — orchestrator-tier only, UN-GATED. Moves the user's VIEWPORT
+ * (never a board): fit the camera to one board, one Named Group, or the whole canvas, via the
+ * host's existing renderer camera verbs (`focusBoardById` / `fitGroup` / `fitAll`). Content-less +
+ * viewport-only — it repositions nothing and is trivially reversible by scrolling — so, like
+ * `tidy_canvas`, it is NOT human-gated. Orchestrator-tier: yanking the user's camera is an
+ * app-level helper act (the Jarvis/command-board scope), not a connected worker's.
+ */
+export const TOOL_FOCUS_VIEWPORT = 'focus_viewport'
+
+/**
+ * Bound on the opaque board/group id `focus_viewport` echoes back from a read resource
+ * (`canvas://boards` / `canvas://layout`), matched host-side. Mirrors {@link MAX_PLANNING_ELEMENT_ID}.
+ */
+export const MAX_FOCUS_TARGET_ID = 200
+
+/**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
  * WRITE, so an unknown/forward type is rejected, never forwarded to the host.
  * (Read surfaces like `canvas://boards` keep `type` an open string for forward
@@ -246,6 +262,14 @@ export const SPAWN_BOARD_MAX_TITLE = 80
  * over-long prompt is rejected before the host is called.
  */
 export const SPAWN_BOARD_MAX_PROMPT = 400
+
+/**
+ * Max chars for an optional `spawn_board` url (H3 / Lane H) — the initial page a new BROWSER
+ * board loads instead of the host's default. http/https only, enforced at the wire AND
+ * re-validated authoritatively by the host (the preview URL bar's own validation applies).
+ * 2048 tracks the practical browser URL ceiling.
+ */
+export const SPAWN_BOARD_MAX_URL = 2048
 
 /**
  * Hard cap on the chars returned by ONE `canvas://board/{id}/output` page (T1.4 🔒).

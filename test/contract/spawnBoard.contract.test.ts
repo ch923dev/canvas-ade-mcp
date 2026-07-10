@@ -157,4 +157,40 @@ describe('spawn_board tool (T3.1, lifecycle write)', () => {
     expect(orch.calls).toEqual([]) // the safety invariant: no spawn on bad input
     await client.close()
   })
+
+  it('passes through an http(s) url to the adapter for a BROWSER (H3)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    await client.callTool({
+      name: TOOL,
+      arguments: { type: 'browser', url: 'http://localhost:3000/' }
+    })
+    expect(orch.calls).toEqual([{ type: 'browser', url: 'http://localhost:3000/' }])
+    await client.close()
+  })
+
+  it('rejects url on a NON-browser board WITHOUT spawning (H3 — the prompt/cwd discipline)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    for (const type of ['terminal', 'planning']) {
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { type, url: 'http://localhost:3000/' }
+      })
+      expect(res.isError).toBe(true)
+    }
+    expect(orch.calls).toEqual([]) // rejected BEFORE the adapter — no orphan board
+    await client.close()
+  })
+
+  it('rejects a non-http(s) url at the Zod layer WITHOUT spawning (H3)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    for (const url of ['file:///etc/passwd', 'javascript:alert(1)', 'not a url']) {
+      const res = await client.callTool({ name: TOOL, arguments: { type: 'browser', url } })
+      expect(res.isError).toBe(true)
+    }
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
 })

@@ -354,6 +354,13 @@ export interface Orchestrator {
     prompt?: string
     cwd?: string
     title?: string
+    /**
+     * BROWSER-ONLY (H3 / Lane H): the initial page the new browser board loads instead of the
+     * host's default. http/https only — the wire schema enforces it and the HOST re-validates
+     * authoritatively (same rule as the preview URL bar). The host REJECTS url on a non-browser
+     * type before any board is created (the prompt/cwd discipline).
+     */
+    url?: string
     sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }>
   /**
@@ -527,6 +534,18 @@ export interface Orchestrator {
    * JSON. `moved` is the count of boards whose position changed (0 ⇒ the canvas was already tidy).
    */
   tidyCanvas(input: { mode?: string }): Promise<unknown>
+  /**
+   * 🔒 Focus the user's VIEWPORT (H1 / Lane H) — fit the camera to one board (`boardId`), one
+   * Named Group (`groupId`), or the whole canvas (neither; `fitAll`). Orchestrator-tier only
+   * (steering the user's camera is an app-level helper act). Content-less + viewport-only: no
+   * board is created, moved, resized, or deleted, so — like {@link Orchestrator.tidyCanvas} — it
+   * is NOT human-gated, and the user reverses it by scrolling. The host resolves the id against
+   * the live canvas and animates via its existing camera verbs (`focusBoardById` / `fitGroup` /
+   * `fitAll`); an unknown id rejects. Typed `unknown` return: the
+   * `{ focused: 'board' | 'group' | 'all', id? }` shape is host-owned (the package does not model
+   * it), mirroring `tidyCanvas` / `describeLayout`; the tool serializes it as JSON.
+   */
+  focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown>
   boardStatus(boardId: BoardId): Promise<string>
   /**
    * Read one KANBAN board's columns + cards (P3b, read-only) — the read half of the card loop, so an
