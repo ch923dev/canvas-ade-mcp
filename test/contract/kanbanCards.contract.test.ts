@@ -3,6 +3,7 @@ import { connectInMemory } from '../helpers/inMemory'
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 import type { KanbanCardPatch, KanbanCardSpec } from '../../src/orchestrator/Orchestrator'
+import { MAX_CARD_FILE_REF_PATH } from '../../src/constants'
 
 // The Kanban card WRITE tools (P3) — add_card / move_card / update_card / remove_card. Flag-gated
 // behind the SAME `planningWrite` gate as add_planning_elements (a Kanban board is a plan surface),
@@ -199,6 +200,56 @@ describe('kanban card tools (P3, planningWrite-gated)', () => {
     })
     expect(res.isError).toBe(true)
     expect(orch.calls).toEqual([]) // never reached the orchestrator
+    await client.close()
+  })
+
+  // Clearing is human-only: an empty `tags`/`fileRefs` is rejected AT THE WIRE (.min(1)), so a valid
+  // co-field in the same patch (here `description`) can't be lost to a host-side throw. Never reaches
+  // the orchestrator.
+  it('update_card REJECTS an empty tags array at the wire (does not drop the co-field)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'update_card',
+      arguments: { boardId: 'k1', cardId: 'c1', description: 'still here', tags: [] }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([]) // never reached the orchestrator — description not applied either
+    await client.close()
+  })
+
+  // The wire cap MUST match the host authority (mcpKanban.ts) + mirror ingest (boardRegistry.ts),
+  // all 256. A path AT the cap forwards; one OVER it is rejected at the Zod layer BEFORE the
+  // orchestrator, so a too-long path never ack's `true` on the wire then silently vanishes on read-back.
+  it(`add_card accepts a fileRef path AT the ${MAX_CARD_FILE_REF_PATH}-char cap and REJECTS one over`, async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const atCap = 'a'.repeat(MAX_CARD_FILE_REF_PATH)
+    const overCap = 'a'.repeat(MAX_CARD_FILE_REF_PATH + 1)
+
+    const ok = await client.callTool({
+      name: 'add_card',
+      arguments: {
+        boardId: 'k1',
+        columnId: 'backlog',
+        title: 'At cap',
+        fileRefs: [{ path: atCap }]
+      }
+    })
+    expect(ok.isError).toBeFalsy()
+    expect(orch.calls).toHaveLength(1) // reached the orchestrator
+
+    const bad = await client.callTool({
+      name: 'add_card',
+      arguments: {
+        boardId: 'k1',
+        columnId: 'backlog',
+        title: 'Over cap',
+        fileRefs: [{ path: overCap }]
+      }
+    })
+    expect(bad.isError).toBe(true)
+    expect(orch.calls).toHaveLength(1) // over-cap never reached the orchestrator
     await client.close()
   })
 })

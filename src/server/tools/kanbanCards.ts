@@ -40,7 +40,14 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
   // additive. `description` is a multi-line body; `tags` is the plural list (supersedes `tag`);
   // `fileRefs` is a bounded list of {path, line?, endLine?} pointers. The HOST re-validates + caps.
   const description = z.string().min(1).max(MAX_CARD_DESCRIPTION).optional()
-  const tags = z.array(z.string().min(1).max(MAX_CARD_TAG)).max(MAX_CARD_TAGS).optional()
+  // `.min(1)` on the lists: an empty array is rejected AT THE WIRE (not passed through to fail host-side
+  // and drop a valid co-field with it). Clearing a card's tags/fileRefs is a human-UI action, never an
+  // MCP one — a write REPLACES with a non-empty list; omit the field to leave it unchanged.
+  const tags = z
+    .array(z.string().min(1).max(MAX_CARD_TAG))
+    .min(1, 'tags cannot be empty — omit it to leave unchanged (clearing is a human-UI action)')
+    .max(MAX_CARD_TAGS)
+    .optional()
   const fileRefs = z
     .array(
       z.object({
@@ -49,6 +56,7 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         endLine: z.number().int().positive().optional()
       })
     )
+    .min(1, 'fileRefs cannot be empty — omit it to leave unchanged (clearing is a human-UI action)')
     .max(MAX_CARD_FILE_REFS)
     .optional()
 
@@ -106,8 +114,8 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
       description:
         "Update an existing KANBAN card's title / tag / assignee / ref / description / tags / " +
         'fileRefs. Only the fields you pass change; supply at least one. tags (the plural array) ' +
-        'REPLACES the card\'s chips and supersedes the singular tag; fileRefs (array of ' +
-        '{path, line?, endLine?}) REPLACES the card\'s file references; description sets the modal ' +
+        "REPLACES the card's chips and supersedes the singular tag; fileRefs (array of " +
+        "{path, line?, endLine?}) REPLACES the card's file references; description sets the modal " +
         'body. cardId is the id returned by add_card. Human-confirmed before it lands.',
       inputSchema: {
         boardId,

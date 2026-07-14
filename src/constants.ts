@@ -174,7 +174,13 @@ export const MAX_COLUMN_ID = 200
 export const MAX_CARD_DESCRIPTION = 4000
 export const MAX_CARD_TAGS = 20
 export const MAX_CARD_FILE_REFS = 50
-export const MAX_CARD_FILE_REF_PATH = 512
+// MUST equal the host authority (`mcpKanban.ts` MAX_CARD_FILE_REF_PATH = 256), which is itself ≤ the
+// renderer→MAIN mirror-ingest cap: a path the wire accepts here has to survive the host re-validate AND
+// the mirror round-trip, else a 257+-char path would ack `true` on the wire, get rejected by the host,
+// and the agent burns a round-trip on a payload the transport told it was fine. Defence-in-depth requires
+// the wire and host agree (not that the wire is laxer); the mirror cap is larger so human-authored real
+// paths also round-trip, but AGENT content stays bounded at 256.
+export const MAX_CARD_FILE_REF_PATH = 256
 
 /**
  * The two-value COLUMN AXIS a kanban board declares (v19) — what its lanes group BY: `'flow'` =
