@@ -130,6 +130,18 @@ export interface BoardConfig {
   launchCommand?: string
   /** Working directory for the board. */
   cwd?: string
+  /**
+   * v19 KANBAN board config — what the columns group BY: `'flow'` = ordered workflow stages a card
+   * progresses through; `'category'` = unordered buckets a card belongs to. Host-filtered to kanban
+   * boards (off-type on any other board type). Absent ⇒ unchanged (a board read absent ⇒ `'flow'`).
+   */
+  columnAxis?: 'flow' | 'category'
+  /**
+   * v19 KANBAN board config — the display name of the column axis (a short single-line caption /
+   * card-modal field label, e.g. "Phase" / "Subsystem"). Host-filtered to kanban boards; the host
+   * collapses it to a single line + caps it. Absent ⇒ unchanged.
+   */
+  axisLabel?: string
 }
 
 /** Note tints an agent may pick (mirrors the app's `NoteTint`; absent ⇒ host default). */
@@ -219,6 +231,23 @@ export interface KanbanCardSpec {
   assignee?: string
   /** Free-text external reference chip (e.g. 'PR #271'). */
   ref?: string
+  /** v19: long-form MULTI-LINE plain-text description (card-detail modal body, never the card face). */
+  description?: string
+  /** v19: free-text label chips — the plural that supersedes the singular `tag` (each ≤ MAX_CARD_TAG). */
+  tags?: string[]
+  /** v19: file+line references this card touches (each opens the file at that line on click). */
+  fileRefs?: KanbanCardFileRef[]
+}
+
+/**
+ * One file+line reference on a Kanban card (v19) — a project-root-relative `path`, plus optional 1-based
+ * `line`/`endLine` (a range) to open the file scrolled to that spot. An immutable pointer (no live
+ * re-anchoring); the host validates path/line shape but never resolves the file.
+ */
+export interface KanbanCardFileRef {
+  path: string
+  line?: number
+  endLine?: number
 }
 
 /** The fields an agent may change on an existing Kanban card (P3). All optional; only supplied fields change. */
@@ -227,6 +256,12 @@ export interface KanbanCardPatch {
   tag?: string
   assignee?: string
   ref?: string
+  /** v19: replace the card's long-form description (see {@link KanbanCardSpec.description}). */
+  description?: string
+  /** v19: replace the card's label chips — supersedes the legacy singular `tag`. */
+  tags?: string[]
+  /** v19: replace the card's file+line references. */
+  fileRefs?: KanbanCardFileRef[]
 }
 
 /** The layout shapes `visualize_plan` (P5) can render a plan into — the confirm-gate chooser options. */

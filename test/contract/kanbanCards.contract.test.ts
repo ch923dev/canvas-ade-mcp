@@ -123,4 +123,82 @@ describe('kanban card tools (P3, planningWrite-gated)', () => {
     ])
     await client.close()
   })
+
+  it('add_card forwards the v19 detail fields (description / tags / fileRefs)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    await client.callTool({
+      name: 'add_card',
+      arguments: {
+        boardId: 'k1',
+        columnId: 'backlog',
+        title: 'Wire auth',
+        description: 'Add the token middleware.\nCheck expiry with <=.',
+        tags: ['feature', 'security'],
+        fileRefs: [{ path: 'src/auth/mw.ts', line: 12, endLine: 20 }, { path: 'src/auth/token.ts' }]
+      }
+    })
+    expect(orch.calls).toEqual([
+      {
+        method: 'addCard',
+        args: [
+          'k1',
+          {
+            columnId: 'backlog',
+            title: 'Wire auth',
+            description: 'Add the token middleware.\nCheck expiry with <=.',
+            tags: ['feature', 'security'],
+            fileRefs: [
+              { path: 'src/auth/mw.ts', line: 12, endLine: 20 },
+              { path: 'src/auth/token.ts' }
+            ]
+          }
+        ]
+      }
+    ])
+    await client.close()
+  })
+
+  it('update_card forwards the v19 detail fields (description / tags / fileRefs)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    await client.callTool({
+      name: 'update_card',
+      arguments: {
+        boardId: 'k1',
+        cardId: 'c9',
+        description: 'Done.',
+        tags: ['shipped'],
+        fileRefs: [{ path: 'README.md', line: 1 }]
+      }
+    })
+    expect(orch.calls).toEqual([
+      {
+        method: 'updateCard',
+        args: [
+          'k1',
+          'c9',
+          { description: 'Done.', tags: ['shipped'], fileRefs: [{ path: 'README.md', line: 1 }] }
+        ]
+      }
+    ])
+    await client.close()
+  })
+
+  it('add_card REJECTS a fileRef with a non-integer line (schema guard)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'add_card',
+      arguments: {
+        boardId: 'k1',
+        columnId: 'backlog',
+        title: 'Bad ref',
+        fileRefs: [{ path: 'src/x.ts', line: 0 }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([]) // never reached the orchestrator
+    await client.close()
+  })
 })

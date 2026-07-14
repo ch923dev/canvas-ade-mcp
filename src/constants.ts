@@ -164,6 +164,34 @@ export const MAX_CARD_ID = 200
 export const MAX_COLUMN_ID = 200
 
 /**
+ * Transport caps for the v19 card-DETAIL fields (agent read/write of the fields the #345 human UI
+ * added). `description` is a long-form MULTI-LINE plain-text body (unlike the single-line chips), so
+ * it caps generously; `tags` is the plural label list that supersedes the singular `tag` (each entry
+ * reuses {@link MAX_CARD_TAG}); `fileRefs` is a bounded list of `{path, line?, endLine?}` pointers a
+ * card touches (line/endLine are positive integers; path reuses a length cap). Defence in depth — the
+ * HOST (`mcpKanban.ts`) re-validates + re-caps authoritatively.
+ */
+export const MAX_CARD_DESCRIPTION = 4000
+export const MAX_CARD_TAGS = 20
+export const MAX_CARD_FILE_REFS = 50
+export const MAX_CARD_FILE_REF_PATH = 512
+
+/**
+ * The two-value COLUMN AXIS a kanban board declares (v19) — what its lanes group BY: `'flow'` =
+ * ordered workflow stages a card progresses through (the classic kanban); `'category'` = unordered
+ * buckets a card belongs to (subsystem/phase/owner). Set via `configure_board`. A closed enum — an
+ * off-value is rejected at the Zod layer; the host also re-validates + falls back to `'flow'`.
+ */
+export const KANBAN_COLUMN_AXES = ['flow', 'category'] as const
+
+/**
+ * Max chars for a kanban board's `axisLabel` (v19) — the display name of the column axis (a short
+ * single-line caption/field label, e.g. "Phase" / "Subsystem" / "Sprint"). Renderable content, so the
+ * host collapses it to a single line + caps it authoritatively; this is the wire-level guard.
+ */
+export const MAX_AXIS_LABEL = 60
+
+/**
  * Read-projection count caps for the `canvas://board/{id}/cards` resource (P3b) — bound one board's
  * mirrored kanban projection so a forged `mcp:boards` push can't grow MAIN memory. The card FIELD
  * caps reuse `MAX_CARD_*` above. The HOST (`boardRegistry.ts`) keeps its OWN local copies of these

@@ -61,4 +61,29 @@ describe('configure_board tool (T3.3, lifecycle write)', () => {
     expect(orch.configured).toEqual([])
     await client.close()
   })
+
+  it('forwards the v19 kanban axis config (columnAxis + axisLabel)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    await client.callTool({
+      name: TOOL,
+      arguments: { id: 'k1', columnAxis: 'category', axisLabel: 'Subsystem' }
+    })
+    expect(orch.configured).toEqual([
+      { id: 'k1', config: { columnAxis: 'category', axisLabel: 'Subsystem' } }
+    ])
+    await client.close()
+  })
+
+  it('rejects an off-enum columnAxis at the schema layer', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { id: 'k1', columnAxis: 'sideways' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.configured).toEqual([])
+    await client.close()
+  })
 })
