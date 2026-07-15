@@ -137,6 +137,50 @@ describe('add_planning_elements tool (S2, planning content write — flag-gated)
     await client.close()
   })
 
+  it('forwards an optional section tag (2a column control) to the adapter', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [
+          { kind: 'note', text: 'goal', section: 'Overview' },
+          {
+            kind: 'checklist',
+            title: 'Setup',
+            items: [{ label: 'env' }],
+            section: 'Setup'
+          }
+        ]
+      }
+    })
+    expect(orch.calls).toHaveLength(1)
+    // section survives the zod parse (it must, or the host never groups by it).
+    expect(orch.calls[0]?.spec.elements[0]).toEqual({
+      kind: 'note',
+      text: 'goal',
+      section: 'Overview'
+    })
+    expect((orch.calls[0]?.spec.elements[1] as { section?: string }).section).toBe('Setup')
+    await client.close()
+  })
+
+  it('rejects an over-long section tag (schema cap)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'note', text: 'x', section: 'S'.repeat(61) }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
   it('rejects a diagram with an empty source (schema guard)', async () => {
     const orch = new SpyOrchestrator()
     const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)

@@ -38,7 +38,10 @@ export function registerWriteResult(
         // An oversized payload is rejected here by Zod before it reaches the orchestrator; the MAIN
         // clamps remain as independent defense-in-depth.
         summary: z.string().max(WRITE_RESULT_MAX_SUMMARY).optional(),
-        refs: z.array(z.string().max(WRITE_RESULT_MAX_REF_LEN)).max(WRITE_RESULT_MAX_REFS).optional()
+        refs: z
+          .array(z.string().max(WRITE_RESULT_MAX_REF_LEN))
+          .max(WRITE_RESULT_MAX_REFS)
+          .optional()
       }
     },
     async (args) => {

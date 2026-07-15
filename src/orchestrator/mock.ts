@@ -6,11 +6,17 @@ import type {
   BoardResultInput,
   BoardStatusChange,
   BoardSummary,
+  KanbanCardPatch,
+  KanbanCardSpec,
   MemoryDoc,
   Orchestrator,
+  PlanningElementPatch,
   PlanningElementsSpec,
+  RelayItem,
+  RelayResult,
   SpawnGroupInput,
-  SpawnGroupResult
+  SpawnGroupResult,
+  VisualizePlanSpec
 } from './Orchestrator'
 
 /** A no-op Orchestrator for contract tests and standalone runs. */
@@ -23,23 +29,71 @@ export class MockOrchestrator implements Orchestrator {
     type: string
     prompt?: string
     cwd?: string
+    title?: string
+    url?: string
+    sourceBoardId?: BoardId
   }): Promise<{ id: BoardId }> {
     return { id: 'mock-board' }
+  }
+
+  async focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown> {
+    // Echo the host contract shape so the tool's JSON serialization is contract-testable.
+    if (input.boardId) return { focused: 'board', id: input.boardId }
+    if (input.groupId) return { focused: 'group', id: input.groupId }
+    return { focused: 'all' }
   }
 
   async closeBoard(_boardId: BoardId): Promise<void> {}
 
   async addPlanningElements(_boardId: BoardId, _spec: PlanningElementsSpec): Promise<void> {}
 
+  async updatePlanningElement(
+    _boardId: BoardId,
+    _elementId: string,
+    _patch: PlanningElementPatch
+  ): Promise<void> {}
+
+  async removePlanningElement(_boardId: BoardId, _elementId: string): Promise<void> {}
+
+  async addCard(_boardId: BoardId, _spec: KanbanCardSpec): Promise<{ id: BoardId }> {
+    return { id: 'mock-card' }
+  }
+
+  async moveCard(_boardId: BoardId, _cardId: BoardId, _toColumnId: string): Promise<void> {}
+
+  async updateCard(_boardId: BoardId, _cardId: BoardId, _patch: KanbanCardPatch): Promise<void> {}
+
+  async removeCard(_boardId: BoardId, _cardId: BoardId): Promise<void> {}
+
+  async visualizePlan(_spec: VisualizePlanSpec): Promise<{ id: BoardId }> {
+    return { id: 'mock-board' }
+  }
+
   async configureBoard(_boardId: BoardId, _config: BoardConfig): Promise<void> {}
 
-  async dispatchPrompt(_boardId: BoardId, _text: string): Promise<void> {}
+  async dispatchPrompt(
+    _boardId: BoardId,
+    _text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {}
 
   async writeResult(_boardId: BoardId, _result: BoardResultInput): Promise<void> {}
 
   async interrupt(_boardId: BoardId): Promise<void> {}
 
-  async relayPrompt(_sourceId: BoardId, _targetId: BoardId, _text: string): Promise<void> {}
+  async relayPrompt(
+    _sourceId: BoardId,
+    _targetId: BoardId,
+    _text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void> {}
+
+  async relayPrompts(items: RelayItem[]): Promise<RelayResult[]> {
+    // No-op: report every item relayed (delivery left unspecified — the legacy 'ready' arm).
+    return items.map((it) => ({
+      sourceId: it.sourceId,
+      targetId: it.targetId,
+      status: 'relayed' as const
+    }))
+  }
 
   async handoffPrompt(_boardId: BoardId, _text: string): Promise<BoardResult> {
     return { present: false }
@@ -62,6 +116,13 @@ export class MockOrchestrator implements Orchestrator {
     }
   }
 
+  async describeLayout(): Promise<unknown> {
+    // A minimal LayoutDigest-shaped object — enough for the resource read contract to assert the
+    // top-level key set ({ version, count, bbox, boards, overlaps, arrangement }). The host's real
+    // describeLayout injects the live geometry + runs buildLayoutDigest.
+    return { version: 1, count: 0, bbox: null, boards: [], overlaps: [], arrangement: 'empty' }
+  }
+
   async spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult> {
     return {
       groupId: 'mock-group',
@@ -71,8 +132,45 @@ export class MockOrchestrator implements Orchestrator {
     }
   }
 
+  async tidyCanvas(_input: { mode?: string }): Promise<unknown> {
+    // A minimal { moved } fixture — enough for the tool call contract to round-trip. The host's real
+    // tidyCanvas forwards a `tidyBoards` command to the renderer packer and returns the moved count.
+    return { moved: 0 }
+  }
+
   async boardStatus(_boardId: BoardId): Promise<string> {
     return 'idle'
+  }
+
+  async boardCards(boardId: BoardId): Promise<unknown> {
+    // A minimal BoardCards-shaped fixture (a kanban board with one lane + one card) — enough for the
+    // resource read contract to assert the grouped shape. The host's real boardCards groups the live
+    // mirror; a non-kanban board would read `{ …, isKanban: false, columns: [] }`.
+    return {
+      boardId,
+      title: 'Mock kanban',
+      isKanban: true,
+      columns: [{ id: 'backlog', title: 'Backlog', wip: null, cards: [{ id: 'c1', title: 'One' }] }]
+    }
+  }
+
+  async boardPlanning(boardId: BoardId): Promise<unknown> {
+    // A minimal BoardPlanning-shaped fixture (a planning board with one checklist carrying one item) —
+    // enough for the resource read contract to assert the shape. The host's real boardPlanning projects
+    // the live board elements; a non-planning board would read `{ …, isPlanning: false, elements: [] }`.
+    return {
+      boardId,
+      title: 'Mock planning',
+      isPlanning: true,
+      elements: [
+        {
+          id: 'el-1',
+          kind: 'checklist',
+          title: 'Build progress',
+          items: [{ id: 'it-1', label: 'Wire the read loop', done: false }]
+        }
+      ]
+    }
   }
 
   async boardOutput(_boardId: BoardId, _opts?: { cursor?: number }): Promise<BoardOutput> {

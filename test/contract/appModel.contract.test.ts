@@ -43,7 +43,11 @@ describe('canvas://app-model resource (C1, orchestrator-tier self-model)', () =>
       version: 1,
       boardTypes: expect.any(Array),
       tools: expect.any(Array),
-      canvas: { boards: expect.any(Array), connectors: expect.any(Array), groups: expect.any(Array) },
+      canvas: {
+        boards: expect.any(Array),
+        connectors: expect.any(Array),
+        groups: expect.any(Array)
+      },
       rules: expect.any(Object)
     })
     await client.close()

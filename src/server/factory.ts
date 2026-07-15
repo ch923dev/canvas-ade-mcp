@@ -5,18 +5,25 @@ import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
 import { registerAppModelResource } from '../resources/appModel'
+import { registerLayoutResource } from '../resources/layout'
 import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
 import { registerConfigureBoard } from './tools/configureBoard'
 import { registerAddPlanningElements } from './tools/addPlanningElements'
+import { registerPlanningEdit } from './tools/planningEdit'
+import { registerKanbanCards } from './tools/kanbanCards'
+import { registerVisualizePlan } from './tools/visualizePlan'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
 import { registerInterrupt } from './tools/interrupt'
 import { registerGitDiff } from './tools/gitDiff'
 import { registerSpawnGroup } from './tools/spawnGroup'
+import { registerTidyCanvas } from './tools/tidyCanvas'
+import { registerFocusViewport } from './tools/focusViewport'
 import { registerRelayPrompt } from './tools/relayPrompt'
+import { registerRelayPrompts } from './tools/relayPrompts'
 import { registerBarrierTools } from './tools/barriers'
 import { installResourceSubscriptions } from './resourceSubscriptions'
 import { createAttentionNotifier } from './attentionNotifier'
@@ -82,8 +89,9 @@ export class ServerFactory {
         async () => ({ content: [{ type: 'text', text: 'orchestrator-pong' }] })
       )
       // Lifecycle write tools (Phase 3+). `spawn_board` gains the optional planning `seed`
-      // only when the host enables the S2 write path (the same flag below).
-      registerSpawnBoard(server, this.orchestrator, { planningWrite })
+      // only when the host enables the S2 write path (the same flag below). ctx rides along for
+      // the rc.6 auto-cable (a no-op at this tier — only a `connected` caller mints a cable).
+      registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
       registerCloseBoard(server, this.orchestrator)
       registerConfigureBoard(server, this.orchestrator)
       // 🔒 Planning content write (S2) — flag-gated, orchestrator-tier. Absent from
@@ -91,6 +99,15 @@ export class ServerFactory {
       // content onto the durable canvas, behind a mandatory write-time human confirm).
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        // 🔒 Planning-element update/remove (S6) — the read-then-update loop closing the append-only
+        // gap. Same content-write gate; each op resolves the element by id + is host-confirmed.
+        registerPlanningEdit(server, this.orchestrator)
+        // 🔒 Kanban card writes (P3) — same content-write gate as add_planning_elements (a Kanban
+        // board is a plan surface). add/move/update/remove a card; each op is host-confirmed.
+        registerKanbanCards(server, this.orchestrator)
+        // 🔒 Visualize plan (P5) — the upgraded content-write gate: propose a flat plan, the host
+        // surfaces a layout chooser (kanban/grid/checklist/columns) + creates the chosen board.
+        registerVisualizePlan(server, this.orchestrator, { ctx })
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
@@ -98,15 +115,30 @@ export class ServerFactory {
       registerInterrupt(server, this.orchestrator)
       // relay_prompt is bound to the designated command orchestrator when one is set (BUG-021).
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // relay_prompts (rc.8) — the batch sibling: N dispatches, ONE per-row human-confirm modal.
+      // Same tier-aware source binding; each item stays an independent host-gated dispatch.
+      registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
       // git_diff (PR-2b) — read-only working-tree diff per board, for the result/recap roll-up.
       registerGitDiff(server, this.orchestrator)
       // spawn_group (C2-wire) — spawn a feature-zone cluster in one cap-checked step. Orchestrator-
       // only to bound swarm growth (a connected agent must not grow the topology unaware).
       registerSpawnGroup(server, this.orchestrator)
+      // tidy_canvas (P2) — reposition the whole canvas via the deterministic packer. Orchestrator-
+      // only (rearranging everyone's boards is an orchestrator act) + UN-GATED (content-less,
+      // reposition-only, one-undo reversible — the spawn_group precedent; NOT behind planningWrite).
+      registerTidyCanvas(server, this.orchestrator)
+      // focus_viewport (H1) — fit the user's camera to a board / group / the whole canvas.
+      // Orchestrator-only (steering the user's viewport is an app-level helper act) + UN-GATED
+      // (viewport-only, content-less, reversible by scrolling — the tidy_canvas precedent).
+      registerFocusViewport(server, this.orchestrator)
       // canvas://app-model (C1) — read-only app self-model. Orchestrator-only: registered HERE (not
       // in registerBoardResources, which serves both tiers) so it is absent from a worker/connected
       // resources/list. The catalog/cap/TTL it exposes are of no use to a non-orchestrator.
       registerAppModelResource(server, this.orchestrator)
+      // canvas://layout (P1b) — read-only spatial digest (bbox/geometry/overlaps/arrangement).
+      // Orchestrator-tier, registered beside app-model (both are orchestrator planning fuel, absent
+      // from a worker/connected resources/list). The digest is host-computed (buildLayoutDigest).
+      registerLayoutResource(server, this.orchestrator)
       // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
       disposers.push(registerBarrierTools(server, this.orchestrator))
     } else if (ctx.tier === 'connected') {
@@ -118,13 +150,21 @@ export class ServerFactory {
       // host's per-action ConfirmModal; relay additionally requires a directed orchestration
       // cable AND is scoped to this board as source (see registerRelayPrompt). The capability
       // split is structural — a connected board's tools/list never even contains the omitted tools.
-      registerSpawnBoard(server, this.orchestrator, { planningWrite })
+      // ctx rides along: a connected caller's token-derived boardId becomes the spawn's
+      // sourceBoardId → the host auto-creates the spawner→spawned orchestration cable (rc.6),
+      // so a follow-up relay_prompt into the freshly-spawned terminal is already authorized.
+      registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
       registerConfigureBoard(server, this.orchestrator)
       if (planningWrite) {
         registerAddPlanningElements(server, this.orchestrator)
+        registerPlanningEdit(server, this.orchestrator)
+        registerKanbanCards(server, this.orchestrator)
+        registerVisualizePlan(server, this.orchestrator, { ctx })
       }
       // relay_prompt — tier-aware binding restricts a connected caller to its own board as source.
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      // relay_prompts (rc.8) — the batch sibling, same own-board source binding applied per item.
+      registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers

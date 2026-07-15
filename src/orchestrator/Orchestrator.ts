@@ -130,6 +130,18 @@ export interface BoardConfig {
   launchCommand?: string
   /** Working directory for the board. */
   cwd?: string
+  /**
+   * v19 KANBAN board config — what the columns group BY: `'flow'` = ordered workflow stages a card
+   * progresses through; `'category'` = unordered buckets a card belongs to. Host-filtered to kanban
+   * boards (off-type on any other board type). Absent ⇒ unchanged (a board read absent ⇒ `'flow'`).
+   */
+  columnAxis?: 'flow' | 'category'
+  /**
+   * v19 KANBAN board config — the display name of the column axis (a short single-line caption /
+   * card-modal field label, e.g. "Phase" / "Subsystem"). Host-filtered to kanban boards; the host
+   * collapses it to a single line + caps it. Absent ⇒ unchanged.
+   */
+  axisLabel?: string
 }
 
 /** Note tints an agent may pick (mirrors the app's `NoteTint`; absent ⇒ host default). */
@@ -142,17 +154,157 @@ export type PlanningNoteTint = 'yellow' | 'blue' | 'green' | 'plain'
  * Discriminated on `kind`: note · checklist · text · arrow (S2) · diagram (a Mermaid `source`
  * the host renders to a themed SVG in a sandboxed worker — requires host schema v11). 🔒
  * Untrusted passive content: it renders but never auto-arms an action.
+ *
+ * Every variant may carry an optional `section` (2a) — a short column label. The host groups
+ * elements by section value and lays out one column per section (in first-appearance order), so an
+ * agent controls the plan's column structure. Layout-only: the host positions by it, never stores it.
  */
 export type PlanningElementSpec =
-  | { kind: 'note'; text: string; tint?: PlanningNoteTint }
-  | { kind: 'checklist'; title: string; items: Array<{ label: string; done?: boolean }> }
-  | { kind: 'text'; text: string }
-  | { kind: 'arrow'; dx: number; dy: number }
-  | { kind: 'diagram'; source: string }
+  | { kind: 'note'; text: string; tint?: PlanningNoteTint; section?: string }
+  | {
+      kind: 'checklist'
+      title: string
+      items: Array<{ label: string; done?: boolean }>
+      section?: string
+    }
+  | { kind: 'text'; text: string; section?: string }
+  | { kind: 'arrow'; dx: number; dy: number; section?: string }
+  | { kind: 'diagram'; source: string; section?: string }
 
 /** The batch an agent writes to a planning board in one confirmed call. */
 export interface PlanningElementsSpec {
   elements: PlanningElementSpec[]
+}
+
+/** One checklist item EDIT (S6) — target an existing item by `id` (from the read resource); set its
+ *  `label` (relabel) and/or `done` (tick/untick). Both value fields optional; at least one is applied. */
+export interface PlanningChecklistItemEdit {
+  id: string
+  label?: string
+  done?: boolean
+}
+
+/** One checklist item to APPEND (S6) — a fresh label + optional initial done state (host mints its id). */
+export interface PlanningChecklistItemAdd {
+  label: string
+  done?: boolean
+}
+
+/**
+ * The in-place edit an agent applies to ONE existing planning element (S6) via `update_planning_element`.
+ * A FLAT patch (like {@link KanbanCardPatch}) — the host resolves the element by id, then applies ONLY
+ * the fields valid for its resolved `kind` and REJECTS a field that doesn't apply (a `source` on a note,
+ * etc.). All fields optional; the host requires at least one. Field → kind:
+ * - `text` — a note or free-text element's body.
+ * - `tint` — a note's tint.
+ * - `title` — a checklist's heading.
+ * - `source` — a diagram's Mermaid source.
+ * - `dx`/`dy` — an arrow's board-local delta (both applied together).
+ * - `setItems` / `addItems` / `removeItemIds` — a checklist's items (edit by id / append / remove by id).
+ * 🔒 Untrusted passive content — an edited element renders, never auto-arms an action.
+ */
+export interface PlanningElementPatch {
+  text?: string
+  tint?: PlanningNoteTint
+  title?: string
+  source?: string
+  dx?: number
+  dy?: number
+  setItems?: PlanningChecklistItemEdit[]
+  addItems?: PlanningChecklistItemAdd[]
+  removeItemIds?: string[]
+}
+
+/**
+ * The content an agent supplies to add ONE Kanban card (P3) — CONTENT only. The host mints the card
+ * id, appends it to the target column, sanitizes every text field, and re-validates before it lands.
+ * Only `columnId` + `title` are required; the chips are optional presentation. 🔒 Untrusted passive
+ * content: it renders on the board, never auto-arms an action.
+ */
+export interface KanbanCardSpec {
+  /** The column (lane) the card lands in — a column id on the target board (e.g. a default slug like 'backlog'). */
+  columnId: string
+  title: string
+  /** Free-text status/type chip (e.g. 'feature', 'needs review'). */
+  tag?: string
+  /** Assignee agent-preset id (e.g. 'claude', 'codex') — rendered as a dot + label. */
+  assignee?: string
+  /** Free-text external reference chip (e.g. 'PR #271'). */
+  ref?: string
+  /** v19: long-form MULTI-LINE plain-text description (card-detail modal body, never the card face). */
+  description?: string
+  /** v19: free-text label chips — the plural that supersedes the singular `tag` (each ≤ MAX_CARD_TAG). */
+  tags?: string[]
+  /** v19: file+line references this card touches (each opens the file at that line on click). */
+  fileRefs?: KanbanCardFileRef[]
+}
+
+/**
+ * One file+line reference on a Kanban card (v19) — a project-root-relative `path`, plus optional 1-based
+ * `line`/`endLine` (a range) to open the file scrolled to that spot. An immutable pointer (no live
+ * re-anchoring); the host validates path/line shape but never resolves the file.
+ */
+export interface KanbanCardFileRef {
+  path: string
+  line?: number
+  endLine?: number
+}
+
+/** The fields an agent may change on an existing Kanban card (P3). All optional; only supplied fields change. */
+export interface KanbanCardPatch {
+  title?: string
+  tag?: string
+  assignee?: string
+  ref?: string
+  /** v19: replace the card's long-form description (see {@link KanbanCardSpec.description}). */
+  description?: string
+  /** v19: replace the card's label chips — supersedes the legacy singular `tag`. */
+  tags?: string[]
+  /** v19: replace the card's file+line references. */
+  fileRefs?: KanbanCardFileRef[]
+}
+
+/** The layout shapes `visualize_plan` (P5) can render a plan into — the confirm-gate chooser options. */
+export type Visualization = 'kanban' | 'grid' | 'checklist' | 'columns'
+
+/**
+ * One item of a flat plan an agent hands to `visualize_plan` (P5) — CONTENT only. The host sanitizes
+ * every field, groups items by `status` into kanban columns / `columns` sections (first-appearance
+ * order), and materializes them into the chosen board shape. Only `title` is required. 🔒 Untrusted
+ * passive content — it renders on the new board, never auto-arms an action.
+ */
+export interface PlanItem {
+  /** The item headline (the card / note / checklist-row title). */
+  title: string
+  /** Status/stage bucket — groups items into kanban columns or `columns` sections (e.g. 'backlog', 'in progress', 'done'). Absent ⇒ a default lane. */
+  status?: string
+  /** Free-text type chip (e.g. 'feature', 'research'). */
+  tag?: string
+  /** Assignee agent-preset id (e.g. 'claude', 'codex') — the card dot on a kanban board. */
+  assignee?: string
+  /** Optional longer note body (rendered under the title on grid/columns notes; ignored by kanban/checklist). */
+  note?: string
+}
+
+/**
+ * The plan an agent hands to `visualize_plan` (P5). `items` is the flat plan; `suggested` is the shape
+ * the agent proposes from the content (the host preselects it in the chooser, but the HUMAN picks the
+ * final shape); `title` names the new board. The host validates + sanitizes + caps everything, shows
+ * the plan + the chooser in a mandatory human confirm, and only on approval creates the board.
+ */
+export interface VisualizePlanSpec {
+  items: PlanItem[]
+  suggested?: Visualization
+  title?: string
+  /**
+   * 🔒 A CONNECTED-tier caller's own token-derived board id — set by the TOOL from `SessionCtx`
+   * (the rc.6 `spawn_board` auto-cable discipline), never client input, so it cannot be forged.
+   * The host resolves the CALLER'S project from it and routes the new board there: a backgrounded
+   * project's agent must not draw onto whichever project happens to be foregrounded. Absent on
+   * orchestrator-tier calls (the 'app' command board always acts on the active project) and on a
+   * host/package predating 0.18.1 (the field is additive — older hosts ignore it).
+   */
+  sourceBoardId?: BoardId
 }
 
 /**
@@ -183,6 +335,30 @@ export interface SpawnGroupResult {
   browserId?: BoardId
 }
 
+/** One dispatch in a `relay_prompts` BATCH — the same {source, target, text} triple as a single relay. */
+export interface RelayItem {
+  sourceId: BoardId
+  targetId: BoardId
+  text: string
+}
+
+/**
+ * Per-item outcome of a `relay_prompts` batch (positionally 1:1 with the input items). `status`:
+ * `'relayed'` = human-approved + written into the target PTY; `'denied'` = the human declined that
+ * row; `'rejected'` = a validation/cable failure that was never confirmed (bad payload, no
+ * `sourceId → targetId` cable, or not terminal → terminal). `delivery` rides back on `'relayed'`
+ * (the same `ready | unconfirmed` verdict as {@link Orchestrator.relayPrompt}); `detail` carries a
+ * short reason on `denied`/`rejected`. Each item is gated independently, so one row's verdict never
+ * changes another's.
+ */
+export interface RelayResult {
+  sourceId: BoardId
+  targetId: BoardId
+  status: 'relayed' | 'denied' | 'rejected'
+  delivery?: 'ready' | 'unconfirmed'
+  detail?: string
+}
+
 /**
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
@@ -190,7 +366,38 @@ export interface SpawnGroupResult {
  */
 export interface Orchestrator {
   listBoards(): Promise<BoardSummary[]>
-  spawnBoard(input: { type: string; prompt?: string; cwd?: string }): Promise<{ id: BoardId }>
+  /**
+   * Spawn a board (T3.1). Optional `title` (2b) is the agent-chosen display name the new board
+   * carries instead of the per-type default ('Terminal'/'Planning'/…); the host collapses
+   * whitespace, strips control chars, and clamps it (it lands verbatim in later human-confirm
+   * modal bodies). Absent/empty ⇒ the host's per-type default title.
+   *
+   * TERMINAL-ONLY (0.18.0-rc.6 — the semantics are now REAL, not deferred): `prompt` is a single
+   * command line the new terminal runs as its FIRST PTY line on spawn (an exec vector — the host
+   * sanitizes to one line, strips control chars, clamps to 400); `cwd` is the spawn working
+   * directory (never executed; a missing/invalid path falls back to the user's home directory).
+   * The host REJECTS prompt/cwd on a non-terminal type before any board is created.
+   *
+   * `sourceBoardId` (rc.6, auto-cable): the token-derived board id of a CONNECTED-tier caller —
+   * the tool passes `ctx.boardId` (unforgeable), never client input. The host then creates the
+   * spawned board AND a directed orchestration connector spawner→spawned in the same step, so the
+   * spawning agent can immediately `relay_prompt` follow-up tasks into the terminal it spawned
+   * (the cable stays visible/deletable on canvas; every relay still pays the human confirm).
+   */
+  spawnBoard(input: {
+    type: string
+    prompt?: string
+    cwd?: string
+    title?: string
+    /**
+     * BROWSER-ONLY (H3 / Lane H): the initial page the new browser board loads instead of the
+     * host's default. http/https only — the wire schema enforces it and the HOST re-validates
+     * authoritatively (same rule as the preview URL bar). The host REJECTS url on a non-browser
+     * type before any board is created (the prompt/cwd discipline).
+     */
+    url?: string
+    sourceBoardId?: BoardId
+  }): Promise<{ id: BoardId }>
   /**
    * Close a board (T3.2). The host drains the board's PTY gracefully (not an abrupt
    * SIGKILL) before removing it from the canvas. Idempotent: closing an absent board
@@ -207,11 +414,78 @@ export interface Orchestrator {
    */
   addPlanningElements(boardId: BoardId, spec: PlanningElementsSpec): Promise<void>
   /**
+   * 🔒 Edit ONE existing planning element in place (S6) — the read-then-update loop that closes the
+   * append-only gap. Orchestrator/connected-tier, flag-gated (`planningWrite`). The host resolves the
+   * element by id on a PLANNING board, validates + sanitizes + caps the patch AGAINST the element's
+   * resolved kind (rejecting a field that doesn't apply), shows the change in a mandatory write-time
+   * human confirm, and only on approval applies it via the command channel as one undoable edit.
+   * Rejects a non-planning target, an unknown element id, or a patch with no applicable field.
+   */
+  updatePlanningElement(
+    boardId: BoardId,
+    elementId: string,
+    patch: PlanningElementPatch
+  ): Promise<void>
+  /**
+   * 🔒 Remove ONE planning element by id (S6) — destructive, so human-confirmed. Orchestrator/connected-
+   * tier, flag-gated. Also the way to clean up a stray duplicate an older append-only agent left behind.
+   * Rejects a non-planning target or an unknown element id.
+   */
+  removePlanningElement(boardId: BoardId, elementId: string): Promise<void>
+  /**
+   * 🔒 Add ONE card to a KANBAN board's column (P3). Orchestrator/connected-tier, flag-gated
+   * (`planningWrite` — a Kanban board is a plan surface). The host MINTS the card id, resolves +
+   * kanban-checks the target, validates + sanitizes + caps the content, shows it in a mandatory
+   * write-time human confirm, and only on approval appends the card via the command channel. Returns
+   * the minted card id so the agent can address it later (move/update/remove). Rejects a non-kanban
+   * target. The content is untrusted passive context — it renders, never auto-arms an action.
+   */
+  addCard(boardId: BoardId, spec: KanbanCardSpec): Promise<{ id: BoardId }>
+  /**
+   * 🔒 Move an existing card to another column on the same KANBAN board (P3). Human-confirmed. Rejects
+   * a non-kanban target, an unknown card id, or an unknown destination column.
+   */
+  moveCard(boardId: BoardId, cardId: BoardId, toColumnId: string): Promise<void>
+  /**
+   * 🔒 Update an existing card's title / tag / assignee / ref (P3). Only the supplied fields change.
+   * Human-confirmed. Rejects a non-kanban target or an unknown card id.
+   */
+  updateCard(boardId: BoardId, cardId: BoardId, patch: KanbanCardPatch): Promise<void>
+  /**
+   * 🔒 Remove a card from a KANBAN board (P3) — destructive, so human-confirmed. Rejects a non-kanban
+   * target or an unknown card id.
+   */
+  removeCard(boardId: BoardId, cardId: BoardId): Promise<void>
+  /**
+   * 🔒 Visualize a flat plan as a NEW board (P5). Orchestrator/connected-tier, flag-gated
+   * (`planningWrite`). The host validates + sanitizes + caps the plan, then surfaces the UPGRADED
+   * human-confirm gate as a layout CHOOSER — kanban / grid / checklist / columns — preselecting the
+   * agent's `suggested` shape. On approval it materializes a NEW board in the shape the human picked,
+   * tidied into open canvas space, MINTS + returns the board id, and audits the outcome. Declined ⇒
+   * nothing is drawn. The content is untrusted passive context — the board renders, never runs.
+   *
+   * Cross-project routing (0.18.1): when the caller's own project (resolved from
+   * `spec.sourceBoardId`) is NOT the active one, the host may QUEUE the confirmed board for that
+   * project instead of drawing it on the active canvas — it then resolves `queuedFor` with that
+   * project's display name (the tool surfaces it to the agent). Absent ⇒ landed live.
+   */
+  visualizePlan(spec: VisualizePlanSpec): Promise<{ id: BoardId; queuedFor?: string }>
+  /**
    * Change a board's durable config (T3.3) — shell / launchCommand / cwd. Only the
    * supplied fields change; the host filters to the board type's patchable keys.
    */
   configureBoard(boardId: BoardId, config: BoardConfig): Promise<void>
-  dispatchPrompt(boardId: BoardId, text: string): Promise<void>
+  /**
+   * Fire-and-forget dispatch into a terminal's PTY (assign_prompt). From 0.18.0-rc.6 a host may
+   * resolve with a delivery verdict — `'ready'` = the write landed in a readiness-confirmed REPL;
+   * `'unconfirmed'` = written, but the target never showed boot-quiet before the host's readiness
+   * backstop (delivery not guaranteed — verify via the board output). The `void` arm keeps
+   * pre-rc.6 hosts (which resolve undefined) valid; tools treat undefined as 'ready' (legacy).
+   */
+  dispatchPrompt(
+    boardId: BoardId,
+    text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void>
   /**
    * 🔒 Record the calling worker's OWN board result (M4 T4.4, worker-tier WRITE). The
    * `boardId` is the caller's token-bound board (never client-supplied), so a worker can
@@ -230,9 +504,24 @@ export interface Orchestrator {
    * `targetId`, expressed by an ORCHESTRATION connector `sourceId → targetId` (the cable
    * is the route + intent). Orchestrator-tier only. The host validates the directed edge
    * exists and is **terminal → terminal** (never Browser → PTY), then gates the write
-   * behind a single-use nonce + a mandatory human confirm + an audit entry. Fire-and-forget.
+   * behind a single-use nonce + a mandatory human confirm + an audit entry. Fire-and-forget;
+   * from 0.18.0-rc.6 a host may resolve with the same delivery verdict as
+   * {@link Orchestrator.dispatchPrompt} (the `void` arm keeps pre-rc.6 hosts valid).
    */
-  relayPrompt(sourceId: BoardId, targetId: BoardId, text: string): Promise<void>
+  relayPrompt(
+    sourceId: BoardId,
+    targetId: BoardId,
+    text: string
+  ): Promise<{ delivery: 'ready' | 'unconfirmed' } | void>
+  /**
+   * 🔒 BATCH agent-to-agent relay (rc.8) — dispatch several {@link RelayItem}s in ONE host-confirmed
+   * step (the host surfaces ONE per-row approval modal). Orchestrator-tier only. Each item is
+   * validated + gated INDEPENDENTLY host-side (its own directed-cable check, single-use nonce, and
+   * audit row) exactly like {@link Orchestrator.relayPrompt}; the batch shares only the human
+   * confirm, so a denied/rejected row never widens another's approval. Resolves a per-item
+   * {@link RelayResult} array, positionally 1:1 with `items`.
+   */
+  relayPrompts(items: RelayItem[]): Promise<RelayResult[]>
   /**
    * 🔒 Blocking hand-off (M4 T4.3): write `text` into the target terminal board's PTY,
    * wait until it goes idle, and return its structured last result. Orchestrator-tier
@@ -252,6 +541,16 @@ export interface Orchestrator {
    */
   describeApp(): Promise<unknown>
   /**
+   * Assemble the read-only SPATIAL digest of the canvas (P1b) — the union bounding box, each placed
+   * board's world-space geometry (+ group membership), overlapping pairs, and a coarse arrangement
+   * (`row`/`column`/`grid`/`scattered`) — so an orchestrator agent can reason about the layout
+   * (whether to tidy, which orientation to propose, where a new plan lands) instead of raw
+   * coordinates. Orchestrator-tier, read-only. Wraps the host's `buildLayoutDigest` over the loopback
+   * wire; serialized as JSON by the `canvas://layout` resource. Typed `unknown` here: the
+   * `LayoutDigest` shape is host-owned (the package does not model it), mirroring `describeApp`.
+   */
+  describeLayout(): Promise<unknown>
+  /**
    * 🔒 Spawn a feature-zone CLUSTER (C2-wire / PR-5c) — a terminal board (always) plus an optional
    * planning + browser member, grouped under a Named Group, in ONE cap-checked step. Orchestrator-
    * tier only (bounds swarm growth). Content-less (empty boards), so it is cap-checked, NOT human-
@@ -259,7 +558,49 @@ export interface Orchestrator {
    * `launchCommand` is an exec vector the host sanitizes before the PTY write (F5/SPEC-W1-B).
    */
   spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult>
+  /**
+   * 🔒 Tidy the whole canvas (P2) — reposition every board into a clean, non-overlapping arrangement
+   * via the host's deterministic packer (`tidyLayout` + `canvasStore.tidyBoards`). Orchestrator-tier
+   * only. Content-less + reposition-only (it MOVES boards that already exist; never resizes, creates,
+   * or deletes one), so it is NOT human-gated — the write-time confirm stays on content writes — and it
+   * is fully reversible in ONE host undo step. `mode` picks the arrangement ('smart' | 'by-type' |
+   * 'grid'; absent ⇒ 'smart'). Typed `unknown` return here: the `{ moved }` shape is host-owned (the
+   * package does not model it), mirroring `describeApp` / `describeLayout`; the tool serializes it as
+   * JSON. `moved` is the count of boards whose position changed (0 ⇒ the canvas was already tidy).
+   */
+  tidyCanvas(input: { mode?: string }): Promise<unknown>
+  /**
+   * 🔒 Focus the user's VIEWPORT (H1 / Lane H) — fit the camera to one board (`boardId`), one
+   * Named Group (`groupId`), or the whole canvas (neither; `fitAll`). Orchestrator-tier only
+   * (steering the user's camera is an app-level helper act). Content-less + viewport-only: no
+   * board is created, moved, resized, or deleted, so — like {@link Orchestrator.tidyCanvas} — it
+   * is NOT human-gated, and the user reverses it by scrolling. The host resolves the id against
+   * the live canvas and animates via its existing camera verbs (`focusBoardById` / `fitGroup` /
+   * `fitAll`); an unknown id rejects. Typed `unknown` return: the
+   * `{ focused: 'board' | 'group' | 'all', id? }` shape is host-owned (the package does not model
+   * it), mirroring `tidyCanvas` / `describeLayout`; the tool serializes it as JSON.
+   */
+  focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown>
   boardStatus(boardId: BoardId): Promise<string>
+  /**
+   * Read one KANBAN board's columns + cards (P3b, read-only) — the read half of the card loop, so an
+   * agent can see a board's live lanes/cards before it mutates them (add/move/update/remove_card).
+   * Served as `canvas://board/{id}/cards` for BOTH tiers (observation is safe; a worker managing its
+   * own plan benefits too). A non-kanban board reads the graceful shell `{ …, isKanban: false,
+   * columns: [] }` (an agent may probe any id — it never throws for a wrong type). Typed `unknown`
+   * here: the grouped `BoardCards` shape is host-owned (the package does not model it), mirroring
+   * `describeApp` / `describeLayout`; the resource just serializes it as JSON.
+   */
+  boardCards(boardId: BoardId): Promise<unknown>
+  /**
+   * Read one PLANNING board's elements + their ids (S6, read-only) — the READ half of the update loop,
+   * so an agent can SEE each element's id + editable content before it mutates them
+   * (update/remove_planning_element). Served as `canvas://board/{id}/planning` for BOTH tiers
+   * (observation is safe). A non-planning board reads the graceful shell `{ …, isPlanning: false,
+   * elements: [] }` (an agent may probe any id — it never throws for a wrong type). Typed `unknown` here:
+   * the projection shape is host-owned (the package does not model it), mirroring `boardCards`.
+   */
+  boardPlanning(boardId: BoardId): Promise<unknown>
   /**
    * Read one capped page of a board's scrollback (T1.4, read-only). `cursor` is the
    * tail-anchored offset from a prior page's `nextCursor`; omit for the newest tail.

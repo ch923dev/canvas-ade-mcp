@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import { TOOL_PING } from '../../src/constants'
 
-const pkgVersion = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
-).version as string
+const pkgVersion = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+  .version as string
 
 describe('handshake (in-memory)', () => {
   it('initializes and ping returns pong', async () => {

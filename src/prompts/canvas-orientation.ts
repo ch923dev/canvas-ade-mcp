@@ -36,7 +36,7 @@ promptRegistry.register({
             'Check your tier from the token you were minted with:',
             '- **orchestrator** — full tool surface: spawn/close/configure boards, ' +
               'dispatch/handoff/relay prompts, interrupt workers, read git diffs, ' +
-              'wait for barriers, write planning elements (when consent is granted).',
+              'wait for barriers, tidy the canvas, write planning elements (when consent is granted).',
             '- **connected** — scoped surface: spawn/configure boards, relay prompts ' +
               'along YOUR outgoing cables only, write planning elements (when consent granted).',
             '- **worker** — read-only + write_result for YOUR board only.',
@@ -56,9 +56,24 @@ promptRegistry.register({
             '## Useful resources to read first',
             '- canvas://boards — all boards, their ids, types, and status buckets.',
             '- canvas://board-states — boards grouped by status bucket.',
+            "- canvas://board/{id}/cards — one Kanban board's columns + cards (read-only).",
+            "- canvas://board/{id}/planning — one Planning board's elements + their ids " +
+              '(checklists with item ids + done state, notes, text, diagrams, arrows).',
             "- canvas://board/{id}/output — last 25k chars of a board's terminal output.",
             '- canvas://board/{id}/result — the structured last result a worker recorded.',
             '- canvas://memory — the project memory index (LLM-generated context).',
+            '',
+            '## Keep plans LIVE — update in place, never re-append',
+            'A plan board is a MIRROR of the work, not an append-only log. When state changes',
+            '(a task finishes, a note is now wrong, a diagram is stale):',
+            '1. READ canvas://board/{id}/planning to get the element id (and, for a checklist,',
+            '   the item ids you want to tick).',
+            '2. EDIT it in place with update_planning_element (toggle checklist items, relabel,',
+            '   rewrite a note, replace a diagram source, retitle) — or remove_planning_element',
+            '   to delete something that no longer belongs (incl. a stray duplicate).',
+            '3. Use add_planning_elements ONLY for content that is genuinely NEW.',
+            'Re-adding a fresh copy of an existing checklist/note is the anti-pattern that leaves',
+            'the board littered with stale duplicates. Every edit is still human-confirmed.',
             '',
             '## Available playbooks (prompts/list)',
             'Call prompts/list to discover the full set of registered playbooks for your tier.'

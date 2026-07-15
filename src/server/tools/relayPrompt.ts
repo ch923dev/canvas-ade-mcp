@@ -83,8 +83,15 @@ export function registerRelayPrompt(
           ]
         }
       }
-      await orchestrator.relayPrompt(args.sourceId, args.targetId, args.prompt)
-      return { content: [{ type: 'text', text: `relayed ${args.sourceId} → ${args.targetId}` }] }
+      // rc.6 honest ack: a readiness-gated host resolves { delivery }; a pre-rc.6 host resolves
+      // undefined (treated as the legacy confirmed path). 'unconfirmed' = the write landed but
+      // the target never showed boot-quiet before the host's readiness backstop.
+      const ack = await orchestrator.relayPrompt(args.sourceId, args.targetId, args.prompt)
+      const text =
+        ack?.delivery === 'unconfirmed'
+          ? `relayed ${args.sourceId} → ${args.targetId} — WARNING: delivery unconfirmed (the target may still be booting; verify via the board output before assuming the task started)`
+          : `relayed ${args.sourceId} → ${args.targetId}`
+      return { content: [{ type: 'text', text }] }
     }
   )
 }

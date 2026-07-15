@@ -20,6 +20,22 @@ export const TOOL_INTERRUPT = 'interrupt'
 export const TOOL_RELAY_PROMPT = 'relay_prompt'
 
 /**
+ * BATCH relay dispatch tool (rc.8) — carry several `relay_prompt` dispatches in ONE call so the
+ * host can surface them in ONE human-confirm modal (per-row approve). Orchestrator + connected
+ * tiers, same tier-aware source binding as `relay_prompt`. Each item stays an INDEPENDENT
+ * dispatch host-side (own cable check, own single-use nonce, own audit row) — the batch shares
+ * only the human confirm, never widening one approval into N commands.
+ */
+export const TOOL_RELAY_PROMPTS = 'relay_prompts'
+
+/**
+ * Max dispatches in ONE `relay_prompts` call (transport-layer cap — the HOST re-validates + re-caps
+ * authoritatively). Kept small: the batch exists to let a human review a handful of related
+ * dispatches at once, not to fan out unbounded writes from a single approval gesture.
+ */
+export const MAX_RELAY_BATCH = 10
+
+/**
  * Phase 4 worker-tier WRITE tool (T4.4) — the FIRST tool a worker may call to mutate
  * state: a worker records its OWN board's structured result. Registered for BOTH tiers
  * and bound to the caller's `ctx.boardId` (a worker can't forge another board's result).
@@ -90,6 +106,169 @@ export const MAX_PLANNING_TITLE = 200
 export const MAX_PLANNING_LABEL = 500
 /** Max chars for a `diagram` element's Mermaid source (kept reviewable in the confirm modal). */
 export const MAX_PLANNING_DIAGRAM = 4000
+/**
+ * Max chars for an element's optional `section` tag (2a) — a short column label the host groups
+ * by. Single-line; the host re-sanitizes + re-caps. Kept tiny: a section is a heading, not prose.
+ */
+export const MAX_PLANNING_SECTION = 60
+
+/**
+ * Planning-element UPDATE / REMOVE tools (S6) — orchestrator + connected tiers, **flag-gated** behind
+ * the SAME `planningWrite` gate as `add_planning_elements` (all mutate content on the durable canvas,
+ * ADR 0003). They close the append-only gap: an agent READS `canvas://board/{id}/planning` to learn
+ * each element's id, then EDITS it in place (`update_planning_element`) or deletes it
+ * (`remove_planning_element`) — instead of re-adding a fresh copy (which stacks stale duplicates). Each
+ * op is gated by the HOST behind a mandatory write-time human confirm + validate/sanitize/cap. Passive
+ * content — an edited element renders on the board, never auto-arms an action.
+ */
+export const TOOL_UPDATE_PLANNING_ELEMENT = 'update_planning_element'
+export const TOOL_REMOVE_PLANNING_ELEMENT = 'remove_planning_element'
+
+/**
+ * Bound on an opaque planning element / checklist-item id an agent echoes back from the read resource
+ * (matched verbatim host-side against the board's `elements[]`). Mirrors {@link MAX_CARD_ID}.
+ */
+export const MAX_PLANNING_ELEMENT_ID = 200
+
+/**
+ * Read-projection element-count cap for the `canvas://board/{id}/planning` resource (S6) — bound one
+ * board's mirrored planning projection so a forged `mcp:boards` push can't grow MAIN memory. Mirrors the
+ * host's `MAX_PLANNING_BOARD_ELEMENTS` accretion cap; the HOST enforces it authoritatively (the mirror
+ * sanitize can't import this package — the P1b "host does NOT import a package it predates" lesson).
+ */
+export const MAX_PLANNING_READ_ELEMENTS = 300
+
+/**
+ * Kanban card WRITE tools (P3) — orchestrator + connected tiers, **flag-gated** behind the SAME
+ * `planningWrite` gate as `add_planning_elements` (a Kanban board is a plan surface; both write
+ * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). Each op is gated by the HOST
+ * behind a mandatory write-time human confirm + validate/sanitize/cap. `add_card` mints + returns the
+ * card id (the agent addresses it thereafter); move/update/remove take that id. Passive content — a
+ * card renders on the board, never auto-arms an action.
+ */
+export const TOOL_ADD_CARD = 'add_card'
+export const TOOL_MOVE_CARD = 'move_card'
+export const TOOL_UPDATE_CARD = 'update_card'
+export const TOOL_REMOVE_CARD = 'remove_card'
+
+/**
+ * Transport-layer caps for a Kanban card write (defence in depth — the HOST re-validates + re-caps
+ * authoritatively). A card carries a short title + optional single-line chips (tag/assignee/ref); ids
+ * are opaque strings the host mints (card) or a column slug the agent targets.
+ */
+export const MAX_CARD_TITLE = 200
+export const MAX_CARD_TAG = 40
+export const MAX_CARD_ASSIGNEE = 40
+export const MAX_CARD_REF = 80
+export const MAX_CARD_ID = 200
+export const MAX_COLUMN_ID = 200
+
+/**
+ * Transport caps for the v19 card-DETAIL fields (agent read/write of the fields the #345 human UI
+ * added). `description` is a long-form MULTI-LINE plain-text body (unlike the single-line chips), so
+ * it caps generously; `tags` is the plural label list that supersedes the singular `tag` (each entry
+ * reuses {@link MAX_CARD_TAG}); `fileRefs` is a bounded list of `{path, line?, endLine?}` pointers a
+ * card touches (line/endLine are positive integers; path reuses a length cap). Defence in depth — the
+ * HOST (`mcpKanban.ts`) re-validates + re-caps authoritatively.
+ */
+export const MAX_CARD_DESCRIPTION = 4000
+export const MAX_CARD_TAGS = 20
+export const MAX_CARD_FILE_REFS = 50
+// MUST equal the host authority (`mcpKanban.ts` MAX_CARD_FILE_REF_PATH = 256), which is itself ≤ the
+// renderer→MAIN mirror-ingest cap: a path the wire accepts here has to survive the host re-validate AND
+// the mirror round-trip, else a 257+-char path would ack `true` on the wire, get rejected by the host,
+// and the agent burns a round-trip on a payload the transport told it was fine. Defence-in-depth requires
+// the wire and host agree (not that the wire is laxer); the mirror cap is larger so human-authored real
+// paths also round-trip, but AGENT content stays bounded at 256.
+export const MAX_CARD_FILE_REF_PATH = 256
+
+/**
+ * The two-value COLUMN AXIS a kanban board declares (v19) — what its lanes group BY: `'flow'` =
+ * ordered workflow stages a card progresses through (the classic kanban); `'category'` = unordered
+ * buckets a card belongs to (subsystem/phase/owner). Set via `configure_board`. A closed enum — an
+ * off-value is rejected at the Zod layer; the host also re-validates + falls back to `'flow'`.
+ */
+export const KANBAN_COLUMN_AXES = ['flow', 'category'] as const
+
+/**
+ * Max chars for a kanban board's `axisLabel` (v19) — the display name of the column axis (a short
+ * single-line caption/field label, e.g. "Phase" / "Subsystem" / "Sprint"). Renderable content, so the
+ * host collapses it to a single line + caps it authoritatively; this is the wire-level guard.
+ */
+export const MAX_AXIS_LABEL = 60
+
+/**
+ * Read-projection count caps for the `canvas://board/{id}/cards` resource (P3b) — bound one board's
+ * mirrored kanban projection so a forged `mcp:boards` push can't grow MAIN memory. The card FIELD
+ * caps reuse `MAX_CARD_*` above. The HOST (`boardRegistry.ts`) keeps its OWN local copies of these
+ * numbers — the mirror sanitize can't import this package (it predates the installed version; the
+ * P1b "host does NOT import from an installed package it predates" lesson) — so these are the shared
+ * contract value, enforced authoritatively host-side.
+ */
+export const MAX_KANBAN_COLUMNS = 50
+export const MAX_KANBAN_CARDS = 300
+
+/**
+ * Plan-visualization WRITE tool (P5) — orchestrator + connected tiers, **flag-gated** behind the SAME
+ * `planningWrite` gate as `add_planning_elements` / the Kanban card tools (all three write
+ * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). The agent hands a flat plan (a
+ * list of items) + a SUGGESTED shape; the HOST surfaces the upgraded human-confirm gate as a layout
+ * CHOOSER (kanban / grid / checklist / columns), and on approval materializes a NEW board in the shape
+ * the human picked, tidied into open canvas space. The host mints + returns the board id. Passive
+ * content — the board renders, never auto-arms an action ("this only draws").
+ */
+export const TOOL_VISUALIZE_PLAN = 'visualize_plan'
+
+/** The layout shapes `visualize_plan` may render a plan into (the confirm-gate chooser options). */
+export const VISUALIZATIONS = ['kanban', 'grid', 'checklist', 'columns'] as const
+
+/**
+ * Transport-layer caps for one `visualize_plan` call (defence in depth — the HOST re-validates +
+ * re-caps + sanitizes authoritatively before the confirm gate). A plan item carries a short title +
+ * optional single-line status/tag/assignee chips + an optional multi-line note; `status` groups items
+ * into kanban columns / `columns` sections. `MAX_PLAN_TITLE` bounds the new board's display name.
+ */
+export const MAX_PLAN_ITEMS = 100
+export const MAX_PLAN_ITEM_TITLE = 200
+export const MAX_PLAN_ITEM_STATUS = 60
+export const MAX_PLAN_ITEM_TAG = 40
+export const MAX_PLAN_ITEM_ASSIGNEE = 40
+export const MAX_PLAN_ITEM_NOTE = 2000
+export const MAX_PLAN_TITLE = 200
+
+/**
+ * Canvas TIDY tool (P2) — orchestrator-tier only, UN-GATED. Repositions the whole canvas into a
+ * clean, non-overlapping arrangement via the app's already-built deterministic packer (`tidyLayout`
+ * + `canvasStore.tidyBoards`). Content-less (it only moves boards that already exist — never resizes,
+ * creates, or deletes one) and fully reversible in ONE Ctrl+Z, so — like `spawn_group` — it carries
+ * no exec vector and is NOT human-gated (the write-time confirm stays on content writes). Orchestrator-
+ * tier: rearranging everyone's boards is an orchestrator-scope act, not a single connected worker's.
+ */
+export const TOOL_TIDY_CANVAS = 'tidy_canvas'
+
+/**
+ * The tidy MODES an agent may pick — 1:1 with the app's `TidyMode`: `smart` (link-aware, the default),
+ * `by-type` (terminals | browsers | planning columns), `grid` (shelf bin-pack). This IS the
+ * "orientation" the epic folded into "a mode the agent picks". An off-enum value is rejected at the
+ * Zod layer; the host applier also re-validates and falls back to `smart` (defence in depth).
+ */
+export const TIDY_MODES = ['smart', 'by-type', 'grid'] as const
+
+/**
+ * Camera FOCUS tool (H1 / Lane H) — orchestrator-tier only, UN-GATED. Moves the user's VIEWPORT
+ * (never a board): fit the camera to one board, one Named Group, or the whole canvas, via the
+ * host's existing renderer camera verbs (`focusBoardById` / `fitGroup` / `fitAll`). Content-less +
+ * viewport-only — it repositions nothing and is trivially reversible by scrolling — so, like
+ * `tidy_canvas`, it is NOT human-gated. Orchestrator-tier: yanking the user's camera is an
+ * app-level helper act (the Jarvis/command-board scope), not a connected worker's.
+ */
+export const TOOL_FOCUS_VIEWPORT = 'focus_viewport'
+
+/**
+ * Bound on the opaque board/group id `focus_viewport` echoes back from a read resource
+ * (`canvas://boards` / `canvas://layout`), matched host-side. Mirrors {@link MAX_PLANNING_ELEMENT_ID}.
+ */
+export const MAX_FOCUS_TARGET_ID = 200
 
 /**
  * Board types an orchestrator may spawn (T3.1). A closed allowlist — spawn is a
@@ -98,6 +277,33 @@ export const MAX_PLANNING_DIAGRAM = 4000
  * compatibility; the write path is deliberately stricter.)
  */
 export const SPAWNABLE_BOARD_TYPES = ['terminal', 'browser', 'planning'] as const
+
+/**
+ * Max chars for an optional `spawn_board` title (2b) — the agent-chosen display name the new
+ * board carries instead of the per-type default ('Terminal'/'Planning'/…). Mirrors the host's
+ * `SPAWN_BOARD_MAX_TITLE` clamp (`mcpLifecycle.ts`); kept at the same 80 as
+ * {@link SPAWN_GROUP_MAX_NAME} (both are short canvas-chrome labels). The host re-sanitizes +
+ * re-clamps authoritatively — this is the wire-level guard so an over-long title is rejected
+ * before the host is called.
+ */
+export const SPAWN_BOARD_MAX_TITLE = 80
+
+/**
+ * Max chars for an optional `spawn_board` prompt (rc.6) — the single command line the new
+ * TERMINAL runs as its first PTY line. Mirrors the host's shared 400-char spawn-time
+ * launchCommand clamp (`mcpLifecycle.ts` SPAWN_LAUNCH_MAX, the same rule `spawn_group` pays);
+ * the host re-sanitizes + re-clamps authoritatively — this is the wire-level guard so an
+ * over-long prompt is rejected before the host is called.
+ */
+export const SPAWN_BOARD_MAX_PROMPT = 400
+
+/**
+ * Max chars for an optional `spawn_board` url (H3 / Lane H) — the initial page a new BROWSER
+ * board loads instead of the host's default. http/https only, enforced at the wire AND
+ * re-validated authoritatively by the host (the preview URL bar's own validation applies).
+ * 2048 tracks the practical browser URL ceiling.
+ */
+export const SPAWN_BOARD_MAX_URL = 2048
 
 /**
  * Hard cap on the chars returned by ONE `canvas://board/{id}/output` page (T1.4 🔒).

@@ -66,7 +66,8 @@ function parse(res: { contents: ReadonlyArray<{ uri?: unknown; text?: unknown }>
 describe('canvas://board/{id}/output over real HTTP', () => {
   let ts: TestServer
   // 2.5 pages of distinct chars so paging order is unambiguous.
-  const buf = 'A'.repeat(MAX_OUTPUT_PAGE) + 'B'.repeat(MAX_OUTPUT_PAGE) + 'C'.repeat(MAX_OUTPUT_PAGE)
+  const buf =
+    'A'.repeat(MAX_OUTPUT_PAGE) + 'B'.repeat(MAX_OUTPUT_PAGE) + 'C'.repeat(MAX_OUTPUT_PAGE)
 
   beforeAll(async () => {
     ts = await startTestServer(new OutputOrchestrator(buf))
