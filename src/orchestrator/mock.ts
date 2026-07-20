@@ -155,9 +155,11 @@ export class MockOrchestrator implements Orchestrator {
   }
 
   async boardPlanning(boardId: BoardId): Promise<unknown> {
-    // A minimal BoardPlanning-shaped fixture (a planning board with one checklist carrying one item) —
-    // enough for the resource read contract to assert the shape. The host's real boardPlanning projects
-    // the live board elements; a non-planning board would read `{ …, isPlanning: false, elements: [] }`.
+    // A minimal BoardPlanning-shaped fixture (a checklist + one structured diagram) — enough for the
+    // resource read contract to assert the shape, incl. the Phase-3 diagram projection: an expanse
+    // element reads back `engine` + the full `spec` (ids and all — the specOps read-then-update key);
+    // a Mermaid element reads back `engine:'mermaid'` + `source`. The host's real boardPlanning
+    // projects the live board elements; a non-planning board reads `{ …, isPlanning: false, elements: [] }`.
     return {
       boardId,
       title: 'Mock planning',
@@ -168,6 +170,20 @@ export class MockOrchestrator implements Orchestrator {
           kind: 'checklist',
           title: 'Build progress',
           items: [{ id: 'it-1', label: 'Wire the read loop', done: false }]
+        },
+        {
+          id: 'el-2',
+          kind: 'diagram',
+          engine: 'expanse',
+          spec: {
+            version: 1,
+            direction: 'right',
+            nodes: [
+              { id: 'plan', label: 'Plan', status: 'done' },
+              { id: 'build', label: 'Build', status: 'active' }
+            ],
+            edges: [{ id: 'e1', from: 'plan', to: 'build', kind: 'flow' }]
+          }
         }
       ]
     }

@@ -5,13 +5,15 @@ lets AI coding agents running _inside_ Canvas ADE boards orchestrate the canvas 
 turns the canvas from a human-driven cockpit into an **AI-orchestratable swarm environment** with a
 **command board** (an orchestrator agent) driving a fleet of worker agents.
 
-> **Status:** planning / docs only. No code yet. Build order lives in [`docs/roadmap.md`](docs/roadmap.md).
+> **Status:** shipped + consumed. Published to npm as `@expanse-ade/mcp` (tag-push → OIDC trusted
+> publishing); the app pins an exact version. 25 tools across the orchestrator/connected/worker
+> tiers, contract + live test suites green. Historical build order in [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
 ## What this is (and is NOT)
 
-- **IS:** a **standalone package with its own git repo**, living at `Z:\canvas-ade-mcp` — a
+- **IS:** a **standalone package with its own git repo**, living at `M:\expanse\canvas-ade-mcp` — a
   **sibling of the Canvas ADE repo, NOT nested inside it**. It owns the MCP _contract_ — tool +
   resource + prompt schemas, the streamable-HTTP transport, auth (per-board bearer tokens), and the
   capability tier-factory (orchestrator vs worker).
@@ -22,9 +24,9 @@ turns the canvas from a human-driven cockpit into an **AI-orchestratable swarm e
   to the real implementations.
 
 ```
-Z:\
-├─ Canvas ADE\        ← the Electron app (its own git repo) — CONSUMES canvas-ade-mcp as a dep
-└─ canvas-ade-mcp\    ← THIS repo (separate git repo, sibling — never nested in Canvas ADE)
+M:\expanse\
+├─ expanse-desktop\   ← the Electron app (its own git repo) — CONSUMES @expanse-ade/mcp as a pinned dep
+└─ canvas-ade-mcp\    ← THIS repo (separate git repo, sibling — never nested in the app repo)
 ```
 
 **Why separate:** keeps the MCP contract versioned + testable on its own, and avoids nesting a second
@@ -112,6 +114,40 @@ output + holds dispatch power + has external comms (commit/PR/navigate). Therefo
 
 ---
 
+## Structured diagrams — the handoff bundle (diagram Phase 3)
+
+A planning-board diagram now carries one of two content forms, and the distinction is the point:
+
+- **`engine:'expanse'` + `spec`** — a structured **DiagramSpec** (typed nodes/edges/groups with
+  CLOSED status/kind vocabularies). This is the **handoff artifact**: the consumer reads structured
+  spec output rather than inferring intent from pixels. The enum names (`status:'done'`,
+  `kind:'service'`, `flow|data|dependency`) are the **design-token vocabulary** — agents write
+  MEANING; the host owns every colour, shape, and layout. **Prefer this for flow / state /
+  architecture diagrams.**
+- **Mermaid `source`** — the legacy/pixel path. Still first-class for the dialects the spec doesn't
+  model: **sequence / gantt / ER**. Old agents keep working untouched.
+
+The loop that makes the spec compound (the "remix" property):
+
+1. **Read** `canvas://board/{id}/planning` — a diagram element returns its `engine` + full `spec`,
+   ids and all. Any agent can read → modify → propose.
+2. **Update in place** with `update_planning_element.specOps` — upserts idempotent by slug id,
+   applied in order, ONE human confirm (rendered host-side as a semantic diff) + ONE undo step.
+3. **Update vs rewrite rule:** a batch is capped at `MAX_SPEC_OPS` (100) as a _reviewability_
+   bound, not a document bound. Ticking statuses, adding a node, rerouting an edge → `specOps`.
+   Restructuring most of the diagram → re-emit the element (`add_planning_elements` with a fresh
+   spec) so the human reviews one coherent artifact instead of a 100-row diff. The host snapshots
+   prior specs as revisions either way — history is never the agent's job.
+
+Validation is layered like every other content write: this package's zod schemas are transport
+defence-in-depth (shape, caps, closed enums, serialized-byte bound); the HOST re-validates
+authoritatively (`assertDiagramSpec`: referential integrity included) and gates every write behind
+the human confirm. All spec caps are exported from the package root (`SPEC_MAX_NODES`,
+`MAX_DIAGRAM_SPEC_BYTES`, `MAX_SPEC_OPS`, …) so the host's cross-repo parity test pins wire caps
+to host caps name-for-name.
+
+---
+
 ## Dependency on Canvas ADE phases
 
 The MCP build can **start now** for the transport/auth/observation layers, but the dispatch + git
@@ -128,17 +164,20 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the full phase-by-phase plan.
 
 ---
 
-## Layout (planned)
+## Layout
 
 ```
-Z:\canvas-ade-mcp\          ← its own git repo (sibling of Z:\Canvas ADE)
+M:\expanse\canvas-ade-mcp\  ← its own git repo (sibling of M:\expanse\expanse-desktop)
   README.md              ← this file
   docs/
     roadmap.md           ← phased build plan (0 → full), per-phase test gate
     decisions/           ← ADRs specific to the MCP layer (transport, auth, safety)
-  src/                   ← (added Phase 0) schemas · transport · auth · tier-factory
+  src/
+    server/              ← ServerFactory (tier-gated registration) · tools/ (one file per tool) · diagramSpec (Phase-3 zod schemas)
+    orchestrator/        ← the Orchestrator contract the host binds + MockOrchestrator
+    auth/ config/ prompts/ resources/
   test/
-    contract/            ← tool-vs-mock-orchestrator tests
-    live/                ← tool-vs-real-Canvas-ADE tests (drives Z:\Canvas ADE: CANVAS_SMOKE=e2e / Playwright)
-  package.json           ← (added Phase 0) standalone package, MCP SDK dep
+    contract/            ← tool-vs-mock-orchestrator tests (pnpm test)
+    live/                ← tool-vs-real-app tests over loopback HTTP (pnpm test:live)
+  package.json           ← standalone package, MCP SDK dep; publishes via tag-push → OIDC
 ```

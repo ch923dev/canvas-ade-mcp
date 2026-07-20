@@ -204,6 +204,186 @@ describe('add_planning_elements tool (S2, planning content write — flag-gated)
   })
 })
 
+describe('diagram spec form (Phase 3 — engine:"expanse" + structured DiagramSpec)', () => {
+  const validSpec = {
+    version: 1,
+    direction: 'right',
+    nodes: [
+      { id: 'plan', label: 'Plan', status: 'done' },
+      { id: 'build', label: 'Build', kind: 'step', status: 'active' }
+    ],
+    edges: [{ id: 'e1', from: 'plan', to: 'build', kind: 'flow' }]
+  }
+
+  it('forwards engine:"expanse" + spec to the adapter (structured emit)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', engine: 'expanse', spec: validSpec }]
+      }
+    })
+    expect(orch.calls).toHaveLength(1)
+    expect(orch.calls[0]?.spec.elements[0]).toEqual({
+      kind: 'diagram',
+      engine: 'expanse',
+      spec: validSpec
+    })
+    await client.close()
+  })
+
+  it('accepts a bare spec with engine absent (expanse implied by the form)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'plan-1', elements: [{ kind: 'diagram', spec: validSpec }] }
+    })
+    expect(res.isError).toBeFalsy()
+    expect(orch.calls).toHaveLength(1)
+    await client.close()
+  })
+
+  it('rejects a diagram carrying BOTH source and spec (exactly-one contract)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', source: 'graph TD\n A-->B', spec: validSpec }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a diagram carrying NEITHER source nor spec', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'plan-1', elements: [{ kind: 'diagram' }] }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects engine/form mismatches (mermaid+spec · expanse+source)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const mismatch1 = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', engine: 'mermaid', spec: validSpec }]
+      }
+    })
+    const mismatch2 = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', engine: 'expanse', source: 'graph TD\n A-->B' }]
+      }
+    })
+    expect(mismatch1.isError).toBe(true)
+    expect(mismatch2.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a status outside the closed vocabulary (no silent coerce)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [
+          {
+            kind: 'diagram',
+            spec: {
+              version: 1,
+              direction: 'right',
+              nodes: [{ id: 'a', label: 'A', status: 'blazing' }],
+              edges: []
+            }
+          }
+        ]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a non-slug node id (charset guard)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [
+          {
+            kind: 'diagram',
+            spec: {
+              version: 1,
+              direction: 'right',
+              nodes: [{ id: 'not a slug!', label: 'A' }],
+              edges: []
+            }
+          }
+        ]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a spec over the node cap (transport mirror of the host cap)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    const nodes = Array.from({ length: 201 }, (_, i) => ({ id: `n${i}`, label: `N${i}` }))
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', spec: { version: 1, direction: 'right', nodes, edges: [] } }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a spec over the serialized-bytes bound (16 KB confirm-reviewability cap)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'test-board', undefined, true)
+    // 100 nodes × ~190-char details ≈ >16 KB serialized while every individual cap passes.
+    const nodes = Array.from({ length: 100 }, (_, i) => ({
+      id: `n${i}`,
+      label: `Node ${i}`,
+      detail: 'd'.repeat(190)
+    }))
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: {
+        boardId: 'plan-1',
+        elements: [{ kind: 'diagram', spec: { version: 1, direction: 'right', nodes, edges: [] } }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+})
+
 describe('spawn_board seed (S2) — planning-only, flag-gated', () => {
   it('spawn_board has NO seed arg when planningWrite is off (a seed is silently ignored)', async () => {
     const orch = new SpyOrchestrator()
