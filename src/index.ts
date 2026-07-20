@@ -29,7 +29,16 @@ export type {
   MemoryDoc,
   PlanningElementSpec,
   PlanningElementsSpec,
+  PlanningElementPatch,
   PlanningNoteTint,
+  DiagramSpec,
+  DiagramSpecNode,
+  DiagramSpecEdge,
+  DiagramSpecGroup,
+  DiagramSpecOp,
+  DiagramSpecStatus,
+  DiagramSpecNodeKind,
+  DiagramSpecEdgeKind,
   RelayItem,
   RelayResult,
   KanbanCardSpec,
@@ -56,6 +65,33 @@ export {
   MAX_CARD_FILE_REFS,
   MAX_CARD_FILE_REF_PATH,
   MAX_AXIS_LABEL
+} from './constants'
+// Planning-element + structured-diagram transport caps (diagram Phase 3) — exported for the same
+// cross-repo parity test: the host asserts these NAME-FOR-NAME against its authoritative caps
+// (`mcpPlanning.ts` / `lib/diagramSpec.ts`) so a wire cap can never silently drift laxer.
+export {
+  MAX_PLANNING_ELEMENTS_PER_CALL,
+  MAX_PLANNING_ITEMS,
+  MAX_PLANNING_TEXT,
+  MAX_PLANNING_TITLE,
+  MAX_PLANNING_LABEL,
+  MAX_PLANNING_DIAGRAM,
+  MAX_PLANNING_SECTION,
+  MAX_PLANNING_ELEMENT_ID,
+  MAX_PLANNING_READ_ELEMENTS,
+  SPEC_MAX_NODES,
+  SPEC_MAX_EDGES,
+  SPEC_MAX_GROUPS,
+  SPEC_ID_MAX,
+  SPEC_LABEL_MAX,
+  SPEC_DETAIL_MAX,
+  SPEC_EDGE_LABEL_MAX,
+  SPEC_TITLE_MAX,
+  SPEC_ICON_MAX,
+  SPEC_HREF_FILE_MAX,
+  SPEC_THEME_MAX,
+  MAX_DIAGRAM_SPEC_BYTES,
+  MAX_SPEC_OPS
 } from './constants'
 export type { Tier, Scope, AuthRow, BoardId } from './types'
 // Prompts substrate (W1-F) — the in-package "skills" foundation. `registerPrompts`

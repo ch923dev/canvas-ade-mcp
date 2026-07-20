@@ -11,6 +11,7 @@ import {
   TOOL_REMOVE_PLANNING_ELEMENT,
   TOOL_UPDATE_PLANNING_ELEMENT
 } from '../../constants'
+import { specOpsArraySchema } from '../diagramSpec'
 
 /**
  * Register the planning-element UPDATE + REMOVE tools (S6) — the read-then-update loop that closes the
@@ -36,7 +37,12 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
         '(and, for a checklist, its item ids); then supply boardId + elementId + only the fields you ' +
         'want to change. Which fields apply depends on the element kind: note → text and/or tint; text ' +
         '→ text; checklist → title, setItems (edit items by id: toggle done and/or relabel), addItems ' +
-        '(append), removeItemIds (delete items by id); diagram → source (Mermaid); arrow → dx/dy. A ' +
+        '(append), removeItemIds (delete items by id); diagram → source (Mermaid engine) OR specOps ' +
+        '(expanse engine: an ordered batch of incremental ops — upsertNode/removeNode/upsertEdge/' +
+        'removeEdge/upsertGroup/removeGroup by slug id, setMeta for title/direction/theme; upserts ' +
+        'are idempotent by id, the whole batch is one confirm + one undo step, and the host ' +
+        'validates the RESULTING spec — read the current spec from canvas://board/{id}/planning ' +
+        'and send the minimal delta); arrow → dx/dy. A ' +
         "field that doesn't match the element's kind is rejected. Human-confirmed before it lands; the " +
         'edit renders as passive content and never runs anything.',
       inputSchema: {
@@ -70,14 +76,21 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
           .array(z.string().min(1).max(MAX_PLANNING_ELEMENT_ID))
           .max(MAX_PLANNING_ITEMS)
           .optional(),
-        // ── diagram ───────────────────────────────────────────────────────────────
+        // ── diagram (Mermaid engine) ──────────────────────────────────────────────
         source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
+        // ── diagram (expanse engine, Phase 3) ─────────────────────────────────────
+        specOps: specOpsArraySchema.optional(),
         // ── arrow ─────────────────────────────────────────────────────────────────
         dx: z.number().finite().optional(),
         dy: z.number().finite().optional()
       }
     },
     async (args) => {
+      // `source` and `specOps` target different diagram ENGINES — never both in one patch
+      // (transport-layer guard; the host rejects against the element's resolved engine anyway).
+      if (args.source !== undefined && args.specOps !== undefined) {
+        throw new Error('supply either "source" (Mermaid) or "specOps" (expanse), not both')
+      }
       // Assemble the FLAT patch from only the present fields (the host requires ≥1 applicable field
       // and re-validates each against the resolved element's kind).
       const patch: PlanningElementPatch = {}
@@ -88,6 +101,7 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
       if (args.addItems !== undefined) patch.addItems = args.addItems
       if (args.removeItemIds !== undefined) patch.removeItemIds = args.removeItemIds
       if (args.source !== undefined) patch.source = args.source
+      if (args.specOps !== undefined) patch.specOps = args.specOps
       if (args.dx !== undefined) patch.dx = args.dx
       if (args.dy !== undefined) patch.dy = args.dy
       await orchestrator.updatePlanningElement(args.boardId, args.elementId, patch)

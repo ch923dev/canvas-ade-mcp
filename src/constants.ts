@@ -139,6 +139,39 @@ export const MAX_PLANNING_ELEMENT_ID = 200
 export const MAX_PLANNING_READ_ELEMENTS = 300
 
 /**
+ * Structured-diagram (engine:'expanse') transport caps — diagram Phase 3 (MCP contract v2).
+ * NAME-FOR-NAME mirrors of the HOST's authoritative caps in expanse-desktop
+ * `src/renderer/src/lib/diagramSpec.ts` (the one source of truth for the 16 KB
+ * confirm-reviewability premise). Exported from the package root so the host's cross-repo
+ * parity test can assert the wire caps never drift laxer than the host's (the Kanban
+ * MAX_CARD_* precedent). Defence in depth only: the host re-runs `assertDiagramSpec`
+ * authoritatively, including referential integrity this layer does not check.
+ */
+export const SPEC_MAX_NODES = 200
+export const SPEC_MAX_EDGES = 400
+export const SPEC_MAX_GROUPS = 50
+export const SPEC_ID_MAX = 64
+export const SPEC_LABEL_MAX = 200
+export const SPEC_DETAIL_MAX = 300
+export const SPEC_EDGE_LABEL_MAX = 120
+export const SPEC_TITLE_MAX = 200
+export const SPEC_ICON_MAX = 64
+export const SPEC_HREF_FILE_MAX = 256
+export const SPEC_THEME_MAX = 64
+/**
+ * Total serialized-bytes bound for ONE DiagramSpec on the wire (JSON.stringify length) — the
+ * host's confirm-reviewability premise: a spec must stay reviewable in the write-time confirm
+ * modal. The host re-measures authoritatively.
+ */
+export const MAX_DIAGRAM_SPEC_BYTES = 16 * 1024
+/**
+ * Max `specOps` in ONE `update_planning_element` call. One batch = one human confirm = one undo
+ * step, so the bound is a reviewability cap (one diff row per op in the confirm modal), not a
+ * document cap — bulk restructuring beyond it should re-emit the element instead.
+ */
+export const MAX_SPEC_OPS = 100
+
+/**
  * Kanban card WRITE tools (P3) — orchestrator + connected tiers, **flag-gated** behind the SAME
  * `planningWrite` gate as `add_planning_elements` (a Kanban board is a plan surface; both write
  * attacker-influenceable CONTENT onto the durable canvas, ADR 0003). Each op is gated by the HOST

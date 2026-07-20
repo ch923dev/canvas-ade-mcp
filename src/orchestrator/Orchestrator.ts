@@ -148,6 +148,80 @@ export interface BoardConfig {
 export type PlanningNoteTint = 'yellow' | 'blue' | 'green' | 'plain'
 
 /**
+ * Structured-diagram wire model (diagram Phase 3, MCP contract v2) — the `engine:'expanse'`
+ * DiagramSpec an agent emits instead of Mermaid text. NAME-FOR-NAME mirror of the host's
+ * canonical model in expanse-desktop `src/renderer/src/lib/diagramSpec.ts`; the host validates
+ * authoritatively (`assertDiagramSpec`: caps, closed enums, referential integrity, byte cap)
+ * before any write. Agents write MEANING (`status:'done'`) — the host owns every colour/shape.
+ * 🔒 Untrusted passive content: a spec renders as text nodes + token-styled divs, never markup.
+ */
+export type DiagramSpecStatus = 'neutral' | 'active' | 'done' | 'error' | 'warn' | 'muted'
+export type DiagramSpecNodeKind =
+  | 'step'
+  | 'decision'
+  | 'data'
+  | 'service'
+  | 'artifact'
+  | 'actor'
+  | 'note'
+export type DiagramSpecEdgeKind = 'flow' | 'data' | 'dependency'
+
+export interface DiagramSpecNode {
+  /** Slug (`[A-Za-z0-9._-]`, ≤ 64) — THE incremental-update key (`specOps` upserts by id). */
+  id: string
+  label: string
+  detail?: string
+  kind?: DiagramSpecNodeKind
+  status?: DiagramSpecStatus
+  icon?: string
+  group?: string
+  pos?: { x: number; y: number }
+  href?: { file: string; line?: number }
+}
+
+export interface DiagramSpecEdge {
+  id: string
+  from: string
+  to: string
+  label?: string
+  kind?: DiagramSpecEdgeKind
+  status?: DiagramSpecStatus
+  animated?: boolean
+}
+
+export interface DiagramSpecGroup {
+  id: string
+  label: string
+  collapsed?: boolean
+  status?: DiagramSpecStatus
+}
+
+export interface DiagramSpec {
+  version: 1
+  title?: string
+  direction: 'right' | 'down'
+  theme?: string
+  nodes: DiagramSpecNode[]
+  edges: DiagramSpecEdge[]
+  groups?: DiagramSpecGroup[]
+}
+
+/**
+ * One incremental diagram op (`update_planning_element.specOps`). Upserts are idempotent by
+ * slug id; the host applies the batch IN ORDER against the element's current spec, validates the
+ * RESULT with its authoritative validator, and gates the whole batch behind ONE human confirm
+ * (rendered as a semantic diff) — one batch = one undo step.
+ */
+export type DiagramSpecOp =
+  | { op: 'upsertNode'; node: DiagramSpecNode }
+  | { op: 'removeNode'; id: string }
+  | { op: 'upsertEdge'; edge: DiagramSpecEdge }
+  | { op: 'removeEdge'; id: string }
+  | { op: 'upsertGroup'; group: DiagramSpecGroup }
+  | { op: 'removeGroup'; id: string }
+  | { op: 'setMeta'; title?: string; direction?: 'right' | 'down'; theme?: string }
+
+/**
  * One structured planning element an agent emits via `add_planning_elements` (S2) — CONTENT
  * only. The host mints ids, positions (stacked below existing content), and default sizes,
  * sanitizes every text field, and re-validates against the canvas schema before it lands.
@@ -169,7 +243,20 @@ export type PlanningElementSpec =
     }
   | { kind: 'text'; text: string; section?: string }
   | { kind: 'arrow'; dx: number; dy: number; section?: string }
-  | { kind: 'diagram'; source: string; section?: string }
+  /**
+   * A diagram carries EXACTLY ONE content form (Phase 3):
+   * - Mermaid: `source` (engine absent or 'mermaid') — rendered to a themed SVG in the host's
+   *   sandboxed worker. The pre-Phase-3 shape, unchanged for old agents.
+   * - Structured: `engine:'expanse'` + `spec` — the host validates with `assertDiagramSpec`
+   *   and renders token-styled DOM (no Mermaid involved).
+   */
+  | {
+      kind: 'diagram'
+      source?: string
+      engine?: 'mermaid' | 'expanse'
+      spec?: DiagramSpec
+      section?: string
+    }
 
 /** The batch an agent writes to a planning board in one confirmed call. */
 export interface PlanningElementsSpec {
@@ -198,7 +285,10 @@ export interface PlanningChecklistItemAdd {
  * - `text` — a note or free-text element's body.
  * - `tint` — a note's tint.
  * - `title` — a checklist's heading.
- * - `source` — a diagram's Mermaid source.
+ * - `source` — a MERMAID diagram's source.
+ * - `specOps` — an EXPANSE (structured-spec) diagram's incremental op batch (Phase 3): applied in
+ *   order against the current spec, result-validated by the host, one confirm + one undo step.
+ *   `source` and `specOps` are mutually exclusive — they target different diagram engines.
  * - `dx`/`dy` — an arrow's board-local delta (both applied together).
  * - `setItems` / `addItems` / `removeItemIds` — a checklist's items (edit by id / append / remove by id).
  * 🔒 Untrusted passive content — an edited element renders, never auto-arms an action.
@@ -208,6 +298,7 @@ export interface PlanningElementPatch {
   tint?: PlanningNoteTint
   title?: string
   source?: string
+  specOps?: DiagramSpecOp[]
   dx?: number
   dy?: number
   setItems?: PlanningChecklistItemEdit[]

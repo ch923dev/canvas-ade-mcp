@@ -11,6 +11,7 @@ import {
   MAX_PLANNING_TITLE,
   TOOL_ADD_PLANNING_ELEMENTS
 } from '../../constants'
+import { diagramSpecSchema } from '../diagramSpec'
 
 /**
  * Schema for ONE agent-emitted planning element (S2; `diagram` added with host schema v11).
@@ -59,7 +60,13 @@ const arrowSpec = z.object({
 const diagramSpec = z.object({
   kind: z.literal('diagram'),
   // Mermaid source text; the host renders it to a themed SVG in a sandboxed worker.
-  source: z.string().min(1).max(MAX_PLANNING_DIAGRAM),
+  source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
+  // Phase 3 (MCP contract v2): the structured form — engine:'expanse' + a full DiagramSpec the
+  // host validates authoritatively (assertDiagramSpec) and renders as token-styled DOM. A
+  // diagram carries EXACTLY ONE of source | spec (enforced in the array superRefine below —
+  // a discriminated-union member must stay a plain object).
+  engine: z.enum(['mermaid', 'expanse']).optional(),
+  spec: diagramSpecSchema.optional(),
   section: sectionField
 })
 
@@ -71,11 +78,42 @@ export const planningElementSpecSchema = z.discriminatedUnion('kind', [
   diagramSpec
 ])
 
-/** A non-empty, capped batch of planning elements an agent writes in one confirmed call. */
+/**
+ * A non-empty, capped batch of planning elements an agent writes in one confirmed call.
+ * The superRefine enforces the diagram content-form contract (source XOR spec, engine
+ * consistent with the form) — shared by `add_planning_elements` and the `spawn_board` seed.
+ */
 export const planningElementsArraySchema = z
   .array(planningElementSpecSchema)
   .min(1)
   .max(MAX_PLANNING_ELEMENTS_PER_CALL)
+  .superRefine((elements, ctx) => {
+    elements.forEach((el, i) => {
+      if (el.kind !== 'diagram') return
+      const hasSource = el.source !== undefined
+      const hasSpec = el.spec !== undefined
+      if (hasSource === hasSpec) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i],
+          message:
+            'diagram element must carry exactly one of "source" (Mermaid) or "spec" (expanse)'
+        })
+      } else if (hasSpec && el.engine === 'mermaid') {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i],
+          message: 'diagram element with engine "mermaid" cannot carry a structured "spec"'
+        })
+      } else if (hasSource && el.engine === 'expanse') {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i],
+          message: 'diagram element with engine "expanse" cannot carry a Mermaid "source"'
+        })
+      }
+    })
+  })
 
 /**
  * Register the `add_planning_elements` content-write tool (S2). Orchestrator-tier AND
@@ -91,8 +129,13 @@ export function registerAddPlanningElements(server: McpServer, orchestrator: Orc
     {
       description:
         'Write structured content to a PLANNING board to render the current plan: notes, ' +
-        'checklists (with items), free text, arrows, and Mermaid diagrams (kind:"diagram" with a ' +
-        '"source" string — flowchart/sequence/ERD; rendered to a themed SVG). boardId must be an ' +
+        'checklists (with items), free text, arrows, and diagrams. A diagram (kind:"diagram") ' +
+        'carries EXACTLY ONE content form: a Mermaid "source" string (flowchart/sequence/ERD; ' +
+        'rendered to a themed SVG) OR engine:"expanse" + "spec" — a structured DiagramSpec ' +
+        '(typed nodes/edges/groups with closed status/kind vocabularies; the host lays it out, ' +
+        'themes it, and animates updates; PREFER it for flow/state/architecture diagrams — its ' +
+        'ids enable later incremental edits via update_planning_element specOps; keep Mermaid ' +
+        'for sequence/gantt/ER). boardId must be an ' +
         'existing planning board id (from spawn_board or canvas://boards). Give each element an ' +
         'optional "section" (a short column label, e.g. "Setup"/"Build"/"Test") to control layout: ' +
         'the board lays out ONE COLUMN PER SECTION, left-to-right in the order sections first ' +

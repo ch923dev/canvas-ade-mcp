@@ -31,14 +31,26 @@ class SpyOrchestrator extends MockOrchestrator {
 
 describe('planning edit tools (S6, planningWrite-gated)', () => {
   it('orchestrator tools/list INCLUDES the edit tools when planningWrite is on', async () => {
-    const client = await connectInMemory('orchestrator', new MockOrchestrator(), 'b', undefined, true)
+    const client = await connectInMemory(
+      'orchestrator',
+      new MockOrchestrator(),
+      'b',
+      undefined,
+      true
+    )
     const names = toolNames(await client.listTools())
     for (const t of EDIT_TOOLS) expect(names).toContain(t)
     await client.close()
   })
 
   it('orchestrator tools/list OMITS the edit tools when planningWrite is off (flag-gated)', async () => {
-    const client = await connectInMemory('orchestrator', new MockOrchestrator(), 'b', undefined, false)
+    const client = await connectInMemory(
+      'orchestrator',
+      new MockOrchestrator(),
+      'b',
+      undefined,
+      false
+    )
     const names = toolNames(await client.listTools())
     for (const t of EDIT_TOOLS) expect(names).not.toContain(t)
     await client.close()
@@ -107,9 +119,7 @@ describe('planning edit tools (S6, planningWrite-gated)', () => {
       name: 'remove_planning_element',
       arguments: { boardId: 'p1', elementId: 'dup-2' }
     })
-    expect(orch.calls).toEqual([
-      { method: 'removePlanningElement', args: ['p1', 'dup-2'] }
-    ])
+    expect(orch.calls).toEqual([{ method: 'removePlanningElement', args: ['p1', 'dup-2'] }])
     await client.close()
   })
 
@@ -131,6 +141,101 @@ describe('planning edit tools (S6, planningWrite-gated)', () => {
     const res = await client.callTool({
       name: 'update_planning_element',
       arguments: { boardId: 'p1', elementId: 'el-1', tint: 'chartreuse' }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+})
+
+describe('update_planning_element specOps (Phase 3 — expanse diagram incremental patch)', () => {
+  it('forwards an ordered specOps batch in the flat patch', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const specOps = [
+      { op: 'upsertNode', node: { id: 'deploy', label: 'Deploy to prod', kind: 'step' } },
+      { op: 'upsertEdge', edge: { id: 'e9', from: 'build', to: 'deploy', kind: 'flow' } },
+      { op: 'removeEdge', id: 'e2' },
+      { op: 'setMeta', theme: 'graphite' }
+    ]
+    await client.callTool({
+      name: 'update_planning_element',
+      arguments: { boardId: 'p1', elementId: 'dia-1', specOps }
+    })
+    expect(orch.calls).toEqual([
+      { method: 'updatePlanningElement', args: ['p1', 'dia-1', { specOps }] }
+    ])
+    await client.close()
+  })
+
+  it('rejects source + specOps together (different engines) WITHOUT calling the adapter', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'update_planning_element',
+      arguments: {
+        boardId: 'p1',
+        elementId: 'dia-1',
+        source: 'graph TD\n A-->B',
+        specOps: [{ op: 'removeNode', id: 'a' }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects an unknown op kind (schema guard)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'update_planning_element',
+      arguments: {
+        boardId: 'p1',
+        elementId: 'dia-1',
+        specOps: [{ op: 'explodeNode', id: 'a' }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a malformed node inside upsertNode (deep schema guard)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'update_planning_element',
+      arguments: {
+        boardId: 'p1',
+        elementId: 'dia-1',
+        specOps: [{ op: 'upsertNode', node: { id: 'bad slug', label: 'X' } }]
+      }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects a batch over the specOps cap (reviewability bound)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const specOps = Array.from({ length: 101 }, (_, i) => ({ op: 'removeNode', id: `n${i}` }))
+    const res = await client.callTool({
+      name: 'update_planning_element',
+      arguments: { boardId: 'p1', elementId: 'dia-1', specOps }
+    })
+    expect(res.isError).toBe(true)
+    expect(orch.calls).toEqual([])
+    await client.close()
+  })
+
+  it('rejects an empty specOps array (nothing to apply)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch, 'b', undefined, true)
+    const res = await client.callTool({
+      name: 'update_planning_element',
+      arguments: { boardId: 'p1', elementId: 'dia-1', specOps: [] }
     })
     expect(res.isError).toBe(true)
     expect(orch.calls).toEqual([])
