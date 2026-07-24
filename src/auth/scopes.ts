@@ -27,6 +27,10 @@ const ORCHESTRATOR_SCOPES: readonly Scope[] = [
 // answer_permission. Tier registration in the factory remains the load-bearing gate; these scopes
 // are the forward-looking finer-grained lever (not yet enforced per-tool).
 const CONNECTED_SCOPES: readonly Scope[] = [SCOPE_READ, SCOPE_DISPATCH, SCOPE_SPAWN]
+// A lead terminal (orchestration Phase 1): dispatch + spawn along its own cables, same envelope as
+// connected — the wider tool surface (barriers, spawn_group) is tier REGISTRATION, not scope. NO
+// git:write and NO answer_permission (the F11 discipline applies unchanged).
+const LEAD_SCOPES: readonly Scope[] = [SCOPE_READ, SCOPE_DISPATCH, SCOPE_SPAWN]
 
 /** Default scopes granted to a freshly-minted token of the given tier. */
 export function defaultScopesFor(tier: Tier): Scope[] {
@@ -35,6 +39,8 @@ export function defaultScopesFor(tier: Tier): Scope[] {
       return [...ORCHESTRATOR_SCOPES]
     case 'connected':
       return [...CONNECTED_SCOPES]
+    case 'lead':
+      return [...LEAD_SCOPES]
     default:
       return [...WORKER_SCOPES]
   }

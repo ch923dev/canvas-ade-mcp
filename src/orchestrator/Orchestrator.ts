@@ -416,6 +416,15 @@ export interface SpawnGroupInput {
    * embedded CR/LF — F5/SPEC-W1-B) and clamps it before writing. Treat as trusted-user input.
    */
   launchCommand?: string
+  /**
+   * 🔒 Auto-cable (orchestration Phase 1, ADDITIVE — older hosts ignore it): the token-derived
+   * board id of a LEAD-tier caller — the tool passes `ctx.boardId` (unforgeable), never client
+   * input. The host then creates a directed orchestration connector lead→terminal-member
+   * alongside the cluster, authorizing follow-up relay/assign dispatch into it (the
+   * {@link Orchestrator.spawnBoard} rc.6 auto-cable discipline applied to a group's terminal).
+   * Absent on orchestrator-tier calls (the 'app' command board needs no cable).
+   */
+  sourceBoardId?: BoardId
 }
 
 /** The minted ids a {@link Orchestrator.spawnGroup} returns so the orchestrator can address the zone. */

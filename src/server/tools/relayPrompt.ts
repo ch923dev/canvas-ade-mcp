@@ -33,6 +33,10 @@ import { dispatchPromptSchema } from './promptSchema'
  *   authorizes the target. STRICTER than `'app'` — it is scoped to its own outgoing cables and
  *   ignores `commandBoardId`. `ctx.boardId` is token-derived, so `sourceId` can't be spoofed to
  *   another board.
+ * - **`lead`** (orchestration Phase 1, precondition X) — identical own-board binding to
+ *   `connected`: the caller's token-derived board id is the ONLY permitted source, and
+ *   `commandBoardId` is ignored. This is the generalization the spike exists to prove — a
+ *   terminal-held orchestrator whose dispatch authority is its own board id, not `'app'`.
  */
 export function registerRelayPrompt(
   server: McpServer,
@@ -54,17 +58,19 @@ export function registerRelayPrompt(
       }
     },
     async (args) => {
-      if (ctx.tier === 'connected') {
-        // 🔒 A connected Terminal board may relay ONLY from its own board (scoped to its own
-        // outgoing cables); the cable graph (host-checked) authorizes the target. ctx.boardId is
-        // token-derived, so a client can't spoof sourceId to drive another board's cables.
+      if (ctx.tier === 'connected' || ctx.tier === 'lead') {
+        // 🔒 A connected OR lead Terminal board may relay ONLY from its own board (scoped to its
+        // own outgoing cables); the cable graph (host-checked) authorizes the target. ctx.boardId
+        // is token-derived, so a client can't spoof sourceId to drive another board's cables.
+        // The lead tier (precondition X) is the point of the generalization: its dispatch
+        // authority binds to the CALLER'S board id, never to `commandBoardId` — which it ignores.
         if (args.sourceId !== ctx.boardId) {
           return {
             isError: true,
             content: [
               {
                 type: 'text',
-                text: 'relay_prompt: a connected terminal may only relay from its own board'
+                text: `relay_prompt: a ${ctx.tier} terminal may only relay from its own board`
               }
             ]
           }

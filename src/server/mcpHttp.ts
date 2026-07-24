@@ -46,7 +46,10 @@ export interface RunningMcpServer {
 /**
  * Re-derive the session context from the server-verified bearer token. The tier is read from
  * the token's `extra.tier` and re-validated against the closed vocabulary — an unknown value
- * fails CLOSED to `worker` (least privilege), never silently to a higher tier.
+ * fails CLOSED to `worker` (least privilege), never silently to a higher tier. `lead`
+ * (orchestration Phase 1) is part of the closed vocabulary: without this branch a lead token
+ * would silently collapse to `worker` at the HTTP boundary (the 0.22.0 gap the live tests now
+ * pin — the in-memory contract layer bypasses this fn, so only an HTTP-layer test catches it).
  */
 export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
   const extra = (auth?.extra ?? {}) as { tier?: unknown; boardId?: unknown }
@@ -55,7 +58,9 @@ export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
       ? 'orchestrator'
       : extra.tier === 'connected'
         ? 'connected'
-        : 'worker'
+        : extra.tier === 'lead'
+          ? 'lead'
+          : 'worker'
   const boardId = typeof extra.boardId === 'string' ? extra.boardId : ''
   return { tier, scopes: auth?.scopes ?? [], boardId }
 }

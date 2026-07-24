@@ -66,12 +66,13 @@ export function registerVisualizePlan(
         items: args.items as PlanItem[],
         ...(args.suggested !== undefined ? { suggested: args.suggested as Visualization } : {}),
         ...(args.title !== undefined ? { title: args.title } : {}),
-        // 🔒 Cross-project routing (0.18.1): a CONNECTED-tier caller passes its own token-derived
-        // id — never client input, so it cannot be forged — and the host resolves the CALLER'S
-        // project from it, routing the new board there instead of whichever project is foregrounded
-        // (the spawn_board auto-cable discipline). Orchestrator-tier calls pass nothing (the 'app'
-        // command board acts on the active project by design).
-        ...(opts.ctx?.tier === 'connected' && opts.ctx.boardId
+        // 🔒 Cross-project routing (0.18.1; lead added in Phase 1): a CONNECTED- or LEAD-tier
+        // caller passes its own token-derived id — never client input, so it cannot be forged —
+        // and the host resolves the CALLER'S project from it, routing the new board there instead
+        // of whichever project is foregrounded (the spawn_board auto-cable discipline).
+        // Orchestrator-tier calls pass nothing (the 'app' command board acts on the active
+        // project by design).
+        ...((opts.ctx?.tier === 'connected' || opts.ctx?.tier === 'lead') && opts.ctx.boardId
           ? { sourceBoardId: opts.ctx.boardId }
           : {})
       })
