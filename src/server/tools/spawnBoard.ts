@@ -112,12 +112,13 @@ export function registerSpawnBoard(
         cwd: args.cwd,
         title: args.title,
         url: args.url,
-        // 🔒 Auto-cable (rc.6): a CONNECTED-tier terminal spawning a board passes its own
-        // token-derived id — never client input, so it cannot be forged — and the host creates a
-        // directed orchestration connector spawner→spawned alongside the board, authorizing
-        // follow-up relay_prompt calls into it. Orchestrator-tier spawns pass nothing (the 'app'
-        // command board dispatches via assign/handoff, which need no cable).
-        ...(opts.ctx?.tier === 'connected' && opts.ctx.boardId
+        // 🔒 Auto-cable (rc.6; lead added in Phase 1): a CONNECTED- or LEAD-tier terminal
+        // spawning a board passes its own token-derived id — never client input, so it cannot be
+        // forged — and the host creates a directed orchestration connector spawner→spawned
+        // alongside the board, authorizing follow-up relay/assign dispatch into it.
+        // Orchestrator-tier spawns pass nothing (the 'app' command board dispatches via
+        // assign/handoff, which need no cable).
+        ...((opts.ctx?.tier === 'connected' || opts.ctx?.tier === 'lead') && opts.ctx.boardId
           ? { sourceBoardId: opts.ctx.boardId }
           : {})
       })

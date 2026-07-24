@@ -165,6 +165,36 @@ export class ServerFactory {
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
       // relay_prompts (rc.8) — the batch sibling, same own-board source binding applied per item.
       registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
+    } else if (ctx.tier === 'lead') {
+      // 🔒 Lead tier (orchestration Phase 1, precondition X): a terminal board holding the
+      // ORCHESTRATOR ROLE over the wire. Its dispatch authority binds to the CALLER'S OWN
+      // token-derived board id — never to `commandBoardId` (which stays the 'app' path's
+      // designation) — and every dispatch still pays the host's directed-cable check +
+      // single-use nonce + human confirm + audit. The tool surface is the orchestration CORE
+      // only: spawn (spawn_board/spawn_group, both auto-cabled lead→spawned so dispatch into a
+      // freshly-spawned worker is already authorized), dispatch (relay_prompt/relay_prompts
+      // own-board-bound; assign_prompt routed through the relay path with this board as source),
+      // and JOIN (the M5 barriers). Deliberately OMITTED: handoff_prompt/interrupt/close_board/
+      // git_diff/configure_board/tidy_canvas/focus_viewport/app-model — the app-resident
+      // orchestrator's cross-board/observational and canvas-wide surfaces are NOT part of the
+      // spike (additive follow-ups if the lead role earns them). Planning writes stay flag-gated
+      // exactly like connected. The capability split is structural — a lead board's tools/list
+      // never even contains the omitted tools.
+      registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
+      registerSpawnGroup(server, this.orchestrator, { ctx })
+      if (planningWrite) {
+        registerAddPlanningElements(server, this.orchestrator)
+        registerPlanningEdit(server, this.orchestrator)
+        registerKanbanCards(server, this.orchestrator)
+        registerVisualizePlan(server, this.orchestrator, { ctx })
+      }
+      // Dispatch — every path binds to the caller's own board id (see each tool's lead notes).
+      registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
+      registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
+      registerAssignPrompt(server, this.orchestrator, ctx)
+      // M5 barriers — the lead's JOIN over the boards it dispatched into; same dispose discipline
+      // as the orchestrator tier (cancel in-flight waits on session close).
+      disposers.push(registerBarrierTools(server, this.orchestrator))
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers

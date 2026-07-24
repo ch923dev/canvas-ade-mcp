@@ -58,7 +58,9 @@ export function registerRelayPrompts(
     async (args) => {
       // 🔒 Tier-aware caller-identity binding, applied to EVERY item (mirrors relay_prompt). A
       // single violating item fails the whole batch — nothing is forwarded to the orchestrator.
-      if (ctx.tier === 'connected') {
+      if (ctx.tier === 'connected' || ctx.tier === 'lead') {
+        // Lead (precondition X) binds every item to the caller's own board exactly like
+        // connected — commandBoardId is ignored at this tier (it designates the 'app' path only).
         const foreign = args.items.some((it) => it.sourceId !== ctx.boardId)
         if (foreign) {
           return {
@@ -66,7 +68,7 @@ export function registerRelayPrompts(
             content: [
               {
                 type: 'text',
-                text: 'relay_prompts: a connected terminal may only relay from its own board'
+                text: `relay_prompts: a ${ctx.tier} terminal may only relay from its own board`
               }
             ]
           }
