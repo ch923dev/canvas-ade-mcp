@@ -65,6 +65,19 @@ export class MockOrchestrator implements Orchestrator {
 
   async removeCard(_boardId: BoardId, _cardId: BoardId): Promise<void> {}
 
+  /**
+   * P4 — the batch findings publish. Implemented on the mock (rather than left off, which the
+   * OPTIONAL interface would allow) so `publish_findings` actually appears in the mock's tools/list:
+   * a host that has not wired it does not register the tool at all, and a mock without it would
+   * silently make every registration test vacuous.
+   */
+  async publishFindings(
+    _boardId: BoardId,
+    _opts?: { lane?: string }
+  ): Promise<{ ok: boolean; published: number; summary: string }> {
+    return { ok: true, published: 0, summary: 'mock: nothing to publish' }
+  }
+
   async visualizePlan(_spec: VisualizePlanSpec): Promise<{ id: BoardId }> {
     return { id: 'mock-board' }
   }

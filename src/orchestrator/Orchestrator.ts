@@ -557,6 +557,26 @@ export interface Orchestrator {
    */
   removeCard(boardId: BoardId, cardId: BoardId): Promise<void>
   /**
+   * 🔒 Publish the run's merged worker findings onto a KANBAN board as ONE human-confirmed BATCH
+   * (orchestration P4). Orchestrator/lead-tier, flag-gated (`planningWrite`).
+   *
+   * Why this is its own tool rather than a loop over `add_card`: `add_card` adds exactly one card
+   * and is human-confirmed, so N findings costs N modals — a confirm storm at precisely the fan-out
+   * scale this exists for. The host composes all N into ONE per-row confirm and ONE canvas write.
+   *
+   * 🔒 THE CALLER SUPPLIES NO CONTENT — only the destination board, and optionally a lane. The host
+   * DERIVES every card from the `write_result` data it already holds, so an agent can never author a
+   * finding no worker actually reported. Resolves what was published / declined / merged / capped;
+   * surface that string to the user rather than reducing it to "done".
+   *
+   * OPTIONAL on the interface so an older host that has not wired it keeps type-checking; the tool
+   * is simply absent from `tools/list` when it is unwired.
+   */
+  publishFindings?(
+    boardId: BoardId,
+    opts?: { lane?: string }
+  ): Promise<{ ok: boolean; published: number; summary: string }>
+  /**
    * 🔒 Visualize a flat plan as a NEW board (P5). Orchestrator/connected-tier, flag-gated
    * (`planningWrite`). The host validates + sanitizes + caps the plan, then surfaces the UPGRADED
    * human-confirm gate as a layout CHOOSER — kanban / grid / checklist / columns — preselecting the

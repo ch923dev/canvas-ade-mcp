@@ -185,6 +185,19 @@ export const TOOL_UPDATE_CARD = 'update_card'
 export const TOOL_REMOVE_CARD = 'remove_card'
 
 /**
+ * `publish_findings` (orchestration P4) — the END-OF-RUN batch sibling of `add_card`.
+ *
+ * `add_card` adds exactly ONE card and is human-confirmed, so publishing N worker findings the
+ * obvious way costs N modals: a confirm storm at exactly the fan-out scale the orchestration layer
+ * exists for. This tool composes all N into ONE per-row confirm and ONE canvas write.
+ *
+ * 🔒 It carries NO content — only a destination board and an optional lane. The host derives every
+ * card from the `write_result` data it already holds, so a caller cannot author a finding no worker
+ * reported.
+ */
+export const TOOL_PUBLISH_FINDINGS = 'publish_findings'
+
+/**
  * Transport-layer caps for a Kanban card write (defence in depth — the HOST re-validates + re-caps
  * authoritatively). A card carries a short title + optional single-line chips (tag/assignee/ref); ids
  * are opaque strings the host mints (card) or a column slug the agent targets.

@@ -14,6 +14,7 @@ import { registerAddPlanningElements } from './tools/addPlanningElements'
 import { registerPlanningEdit } from './tools/planningEdit'
 import { registerKanbanCards } from './tools/kanbanCards'
 import { registerVisualizePlan } from './tools/visualizePlan'
+import { registerPublishFindings } from './tools/publishFindings'
 import { registerHandoffPrompt } from './tools/handoffPrompt'
 import { registerAssignPrompt } from './tools/assignPrompt'
 import { registerWriteResult } from './tools/writeResult'
@@ -108,6 +109,10 @@ export class ServerFactory {
         // 🔒 Visualize plan (P5) — the upgraded content-write gate: propose a flat plan, the host
         // surfaces a layout chooser (kanban/grid/checklist/columns) + creates the chosen board.
         registerVisualizePlan(server, this.orchestrator, { ctx })
+        // 🔒 publish_findings (orchestration P4) — the BATCH sibling of add_card, and the reason the
+        // end-of-run step is usable at all: N findings would otherwise be N confirm modals. Same
+        // content-write gate; the caller supplies no content, only a destination board.
+        registerPublishFindings(server, this.orchestrator)
       }
       // Dispatch write tools (Phase 4) — write into another board's PTY.
       registerHandoffPrompt(server, this.orchestrator)
@@ -187,6 +192,10 @@ export class ServerFactory {
         registerPlanningEdit(server, this.orchestrator)
         registerKanbanCards(server, this.orchestrator)
         registerVisualizePlan(server, this.orchestrator, { ctx })
+        // 🔒 publish_findings (P4) — a lead IS the orchestrator over the wire, and this is the step
+        // that makes its run's conclusions keepable. It needs no own-board binding like the dispatch
+        // tools below: it carries no content and writes only findings the host already holds.
+        registerPublishFindings(server, this.orchestrator)
       }
       // Dispatch — every path binds to the caller's own board id (see each tool's lead notes).
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
