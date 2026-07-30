@@ -47,14 +47,14 @@ NOT force the stateless model; it makes it available behind the same endpoint wh
 `@modelcontextprotocol/sdk@1.29.0` `Client` + `StreamableHTTPClientTransport`, kept as a
 devDependency for exactly this purpose):
 
-| Check | Result |
-|---|---|
-| initialize handshake v1→v2 | PASS (client negotiates 2025-11-25; a raw 2025-06-18 initialize is answered with 2025-06-18 verbatim) |
-| `Mcp-Session-Id` issued + round-trips | PASS |
-| `tools/list` on reused session | PASS |
-| `tools/call` (no-schema + zod4-schema tool) | PASS |
-| standalone GET-SSE | PASS — 200 `text/event-stream` on fresh session; second stream 409 "Only one SSE stream is allowed per session" (identical v1 rule) |
-| DELETE teardown → reuse 404s | PASS |
+| Check                                       | Result                                                                                                                              |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| initialize handshake v1→v2                  | PASS (client negotiates 2025-11-25; a raw 2025-06-18 initialize is answered with 2025-06-18 verbatim)                               |
+| `Mcp-Session-Id` issued + round-trips       | PASS                                                                                                                                |
+| `tools/list` on reused session              | PASS                                                                                                                                |
+| `tools/call` (no-schema + zod4-schema tool) | PASS                                                                                                                                |
+| standalone GET-SSE                          | PASS — 200 `text/event-stream` on fresh session; second stream 409 "Only one SSE stream is allowed per session" (identical v1 rule) |
+| DELETE teardown → reuse 404s                | PASS                                                                                                                                |
 
 7/7. Claude Code's current line is served with no legacy adapter, no flags, no shim.
 
@@ -63,15 +63,15 @@ devDependency for exactly this purpose):
 All published **2026-07-28** as **2.0.0 stable** (beta line ran from 2026-04, `2.0.0-alpha.*` →
 `2.0.0-beta.5`). All `engines.node >= 20` — matches our floor exactly; no Node cost.
 
-| Package | Version | Deps / peers | Notes |
-|---|---|---|---|
-| `@modelcontextprotocol/server` | 2.0.0 | deps: `zod ^4.2.0`, `core 2.0.0` | `McpServer`, `registerTool/Resource/Prompt`, `WebStandardStreamableHTTPServerTransport`, auth core (`OAuthError`, `OAuthTokenVerifier`, `AuthInfo`), `isInitializeRequest` |
-| `@modelcontextprotocol/node` | 2.0.0 | dep: `@hono/node-server`; **peer: `hono ^4.11.4`** (warning-only; runtime fine without it — only `getRequestListener` is used) | `NodeStreamableHTTPServerTransport` — the drop-in for v1's `StreamableHTTPServerTransport`: same ctor options, same `handleRequest(req, res, body)` |
-| `@modelcontextprotocol/express` | 2.0.0 | dep: `cors`; peers: `express ^4.18||^5` ✓(5.2.1), `server ^2.0.0` | Middleware only (NO transport): `requireBearerAuth`, host/origin validation, `createMcpExpressApp`, metadata router |
-| `@modelcontextprotocol/client` | 2.0.0 | — | v2 client; codemod points tests here |
-| `@modelcontextprotocol/core` | 2.0.0 | — | wire `*Schema` constants |
-| `@modelcontextprotocol/server-legacy` | 2.0.0 **deprecated** | — | frozen v1 auth copy; codemod's default landing spot — we re-pointed off it (see Q3) |
-| `@modelcontextprotocol/codemod` | 2.0.0 | — | `v1-to-v2` transform (kickoff said `@beta`; stable superseded it) |
+| Package                               | Version              | Deps / peers                                                                                                                   | Notes                                                                                                                                                                      |
+| ------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `@modelcontextprotocol/server`        | 2.0.0                | deps: `zod ^4.2.0`, `core 2.0.0`                                                                                               | `McpServer`, `registerTool/Resource/Prompt`, `WebStandardStreamableHTTPServerTransport`, auth core (`OAuthError`, `OAuthTokenVerifier`, `AuthInfo`), `isInitializeRequest` |
+| `@modelcontextprotocol/node`          | 2.0.0                | dep: `@hono/node-server`; **peer: `hono ^4.11.4`** (warning-only; runtime fine without it — only `getRequestListener` is used) | `NodeStreamableHTTPServerTransport` — the drop-in for v1's `StreamableHTTPServerTransport`: same ctor options, same `handleRequest(req, res, body)`                        |
+| `@modelcontextprotocol/express`       | 2.0.0                | dep: `cors`; peers: `express ^4.18                                                                                             |                                                                                                                                                                            | ^5`✓(5.2.1),`server ^2.0.0` | Middleware only (NO transport): `requireBearerAuth`, host/origin validation, `createMcpExpressApp`, metadata router |
+| `@modelcontextprotocol/client`        | 2.0.0                | —                                                                                                                              | v2 client; codemod points tests here                                                                                                                                       |
+| `@modelcontextprotocol/core`          | 2.0.0                | —                                                                                                                              | wire `*Schema` constants                                                                                                                                                   |
+| `@modelcontextprotocol/server-legacy` | 2.0.0 **deprecated** | —                                                                                                                              | frozen v1 auth copy; codemod's default landing spot — we re-pointed off it (see Q3)                                                                                        |
+| `@modelcontextprotocol/codemod`       | 2.0.0                | —                                                                                                                              | `v1-to-v2` transform (kickoff said `@beta`; stable superseded it)                                                                                                          |
 
 ## Q3 — Codemod dry-run
 
@@ -79,6 +79,7 @@ All published **2026-07-28** as **2.0.0 stable** (beta line ran from 2026-04, `2
 `pnpm typecheck` passed with ZERO manual fixes and contract went 344/344 immediately.
 
 What it rewrote correctly:
+
 - All deep `@modelcontextprotocol/sdk/*` imports → split packages (incl. every tool/resource/test).
 - `StreamableHTTPServerTransport` → `NodeStreamableHTTPServerTransport` (transport.ts, type + ctor).
 - Schema-first handlers → method-string: `setRequestHandler(SubscribeRequestSchema, …)` →
@@ -88,6 +89,7 @@ What it rewrote correctly:
 - `package.json`: removed `sdk`, added `client` + `server-legacy`.
 
 What it flagged for humans (2 markers, both resolved in the prototype):
+
 1. **`mcpHttp.ts` auth** — codemod parks `requireBearerAuth` on the deprecated frozen
    `server-legacy/auth`. Re-pointed to `@modelcontextprotocol/express` (same `{ verifier }`
    options), and `verifier.ts` now throws `new OAuthError(OAuthErrorCode.InvalidToken, …)` —
@@ -97,6 +99,7 @@ What it flagged for humans (2 markers, both resolved in the prototype):
    auto-verified; hand-wrapped in `z.object()`.
 
 What it got WRONG (watch in Phase C):
+
 - It rewrote the **v1-client import in our back-compat probe** to the v2 client — anything that
   deliberately uses the v1 SDK as a "today's client" test double gets converted and silently loses
   its purpose. Restored by hand; v1 sdk kept as a devDependency.
@@ -109,17 +112,17 @@ What it got WRONG (watch in Phase C):
 The seam held. **No file needed logic changes for the migration itself** — the only non-mechanical
 work was the 2 codemod markers above.
 
-| File(s) | Change | Kind |
-|---|---|---|
-| `src/server/transport.ts` | transport class rename, 2 imports — **SessionManager machinery untouched** | mechanical (the seam, as designed) |
-| `src/server/factory.ts` | **1 import line.** `McpServer` + all `register*` signatures identical | mechanical |
-| `src/server/mcpHttp.ts` | `requireBearerAuth` → `@modelcontextprotocol/express` | manual, small |
-| `src/auth/verifier.ts` | `OAuthError(OAuthErrorCode.InvalidToken)` replaces `InvalidTokenError` | manual, small |
-| `src/server/resourceSubscriptions.ts`, `src/prompts/index.ts` | method-string `setRequestHandler`, `ProtocolError` | mechanical (codemod) |
-| `src/server/tools/*` (19 files) | import renames + `z.object()` wraps (zod4 already in place — no schema-syntax changes) | mechanical (codemod) |
-| `src/resources/*` (8 files), `attentionNotifier.ts` | import renames only | mechanical |
-| `test/**` (19 files) | client imports → v2 client; 1 assertion updated (Q6) | mechanical + 1 shape fix |
-| `package.json` | deps swap; v1 sdk retained as devDep for compat probing | manual review |
+| File(s)                                                       | Change                                                                                 | Kind                               |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------- |
+| `src/server/transport.ts`                                     | transport class rename, 2 imports — **SessionManager machinery untouched**             | mechanical (the seam, as designed) |
+| `src/server/factory.ts`                                       | **1 import line.** `McpServer` + all `register*` signatures identical                  | mechanical                         |
+| `src/server/mcpHttp.ts`                                       | `requireBearerAuth` → `@modelcontextprotocol/express`                                  | manual, small                      |
+| `src/auth/verifier.ts`                                        | `OAuthError(OAuthErrorCode.InvalidToken)` replaces `InvalidTokenError`                 | manual, small                      |
+| `src/server/resourceSubscriptions.ts`, `src/prompts/index.ts` | method-string `setRequestHandler`, `ProtocolError`                                     | mechanical (codemod)               |
+| `src/server/tools/*` (19 files)                               | import renames + `z.object()` wraps (zod4 already in place — no schema-syntax changes) | mechanical (codemod)               |
+| `src/resources/*` (8 files), `attentionNotifier.ts`           | import renames only                                                                    | mechanical                         |
+| `test/**` (19 files)                                          | client imports → v2 client; 1 assertion updated (Q6)                                   | mechanical + 1 shape fix           |
+| `package.json`                                                | deps swap; v1 sdk retained as devDep for compat probing                                | manual review                      |
 
 **The suspected zod3→zod4 bleed does not exist** — ADR 0001's Phase-0 choice of zod4 pre-paid it.
 The registration API (the other suspected radius) is unchanged in v2.
@@ -132,15 +135,15 @@ unchanged; this is the whole point of Q1.
 **Column B — if/when we opt into the native 2026-07-28 stateless core** (a LATER, separate
 decision — not part of Phase C):
 
-| Machinery | A: v2 classic (Phase C) | B: native stateless 2026-07-28 |
-|---|---|---|
-| 🔒 PKG-N1 ownership gate | survives as-is | Dies *as a session gate* because sessions die — and the threat dies with them: with per-request server construction (`McpServerFactory`/`PerRequestHTTPServerTransport`), tier+boardId are re-derived from the bearer token on EVERY request; there is no longer a session frozen at the creator's tier for another token to hijack. The gate's rationale must be re-verified then, not ported blindly. |
-| Idle sweep (`CANVAS_ADE_SESSION_IDLE_TTL_MS`) | survives as-is | Dies for stateless requests (nothing to reap); survives only for whatever legacy-session traffic remains during the transition. `subscriptions/listen` streams need their own liveness policy. |
-| `closeByBoardId` (app v0.43.4 depends on it) | survives as-is | Re-expressed: token revocation (`TokenStore.revoke`) becomes sufficient for REQUESTS (each is re-authenticated), but the host still needs "sever live streams for board X" — becomes cancel-subscriptions-by-board + abort in-flight requests. **expanse-desktop keeps calling the same host API; its implementation changes underneath — design the host call now as "revoke board" not "close sessions".** |
-| Attention notifier (GET-SSE push) | survives as-is | Re-expressed over `subscriptions/listen` (which replaces GET-SSE + `resources/subscribe`). Our `installResourceSubscriptions` + `createAttentionNotifier` pair maps naturally (subscribe bookkeeping → listen registry); wire format changes, concept doesn't. |
-| Blocking barriers (`wait_for_idle/all`) | survive as-is | Long-held POSTs still legal but the idiomatic home is the `io.modelcontextprotocol/tasks` extension (poll/notify) or MRTR `input_required` round-trips. Keep barriers; add tasks only if Claude Code adopts them. |
-| `handoff_prompt` (blocking dispatch) | survives as-is | Same story as barriers — the send-await-idle-return contract holds; tasks extension is the eventual pressure-relief for very long waits. |
-| Bearer auth + tier factory | survives (express middleware swap done) | Survives cleanly — per-request auth is MORE natural stateless; `_meta` carries protocol/capabilities and `AuthInfo` flows per request. |
+| Machinery                                     | A: v2 classic (Phase C)                 | B: native stateless 2026-07-28                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🔒 PKG-N1 ownership gate                      | survives as-is                          | Dies _as a session gate_ because sessions die — and the threat dies with them: with per-request server construction (`McpServerFactory`/`PerRequestHTTPServerTransport`), tier+boardId are re-derived from the bearer token on EVERY request; there is no longer a session frozen at the creator's tier for another token to hijack. The gate's rationale must be re-verified then, not ported blindly.      |
+| Idle sweep (`CANVAS_ADE_SESSION_IDLE_TTL_MS`) | survives as-is                          | Dies for stateless requests (nothing to reap); survives only for whatever legacy-session traffic remains during the transition. `subscriptions/listen` streams need their own liveness policy.                                                                                                                                                                                                               |
+| `closeByBoardId` (app v0.43.4 depends on it)  | survives as-is                          | Re-expressed: token revocation (`TokenStore.revoke`) becomes sufficient for REQUESTS (each is re-authenticated), but the host still needs "sever live streams for board X" — becomes cancel-subscriptions-by-board + abort in-flight requests. **expanse-desktop keeps calling the same host API; its implementation changes underneath — design the host call now as "revoke board" not "close sessions".** |
+| Attention notifier (GET-SSE push)             | survives as-is                          | Re-expressed over `subscriptions/listen` (which replaces GET-SSE + `resources/subscribe`). Our `installResourceSubscriptions` + `createAttentionNotifier` pair maps naturally (subscribe bookkeeping → listen registry); wire format changes, concept doesn't.                                                                                                                                               |
+| Blocking barriers (`wait_for_idle/all`)       | survive as-is                           | Long-held POSTs still legal but the idiomatic home is the `io.modelcontextprotocol/tasks` extension (poll/notify) or MRTR `input_required` round-trips. Keep barriers; add tasks only if Claude Code adopts them.                                                                                                                                                                                            |
+| `handoff_prompt` (blocking dispatch)          | survives as-is                          | Same story as barriers — the send-await-idle-return contract holds; tasks extension is the eventual pressure-relief for very long waits.                                                                                                                                                                                                                                                                     |
+| Bearer auth + tier factory                    | survives (express middleware swap done) | Survives cleanly — per-request auth is MORE natural stateless; `_meta` carries protocol/capabilities and `AuthInfo` flows per request.                                                                                                                                                                                                                                                                       |
 
 Host-side (expanse-desktop) changes needed for Column B only: none for A beyond consuming the new
 package version.
@@ -152,7 +155,7 @@ package version.
 - `test/live/tierCall.live.test.ts` — "a worker calling orchestrator_ping is rejected":
   **transport-shape**, not behavior. v1 answered an unregistered tool with an `isError` RESULT;
   v2 answers protocol-layer method-not-found, so the client call REJECTS (`ProtocolError: Tool
-  orchestrator_ping not found`). The tier gate holds identically. Assertion updated to
+orchestrator_ping not found`). The tier gate holds identically. Assertion updated to
   `rejects.toThrow(/not found/)`.
 - Everything else passed unmodified, including all PKG-N1 session-ownership, reaping, notifier,
   barrier, and 401-shape suites.
@@ -193,13 +196,14 @@ goes unmaintained):
 
 **Do NOW (cheapen Phase C):** almost nothing — the spike proves Phase C is already cheap.
 Specifically:
+
 - Keep this branch + report; do not merge.
 - Do NOT pre-land `z.object()` wraps on main — v1.29's `registerTool` takes raw shapes
   (`ZodRawShape`), not schema objects; the wrap is v2-only syntax. zod4 (the real pre-migration)
   is already done.
 - When next touching the host's board-teardown path, shape it as "revoke board" (token + sessions
-  + streams) rather than "close sessions" — that keeps `closeByBoardId`'s consumer contract stable
-  across Column B (Q5).
+  - streams) rather than "close sessions" — that keeps `closeByBoardId`'s consumer contract stable
+    across Column B (Q5).
 - Watch: `@modelcontextprotocol/node`'s `hono` peer warning (benign today); Claude Code
   2026-07-28 client support (the Phase C trigger); v1 SDK maintenance status.
 
