@@ -29,17 +29,28 @@ req.body)`. Otherwise 400. **400 (missing/no-init) vs 404 (unknown session) are 
   `handleRequest`. SSE default (`enableJsonResponse` unset) so server→agent notifications work later.
 - **Shutdown** — `closeAll()` iterates the map calling `transport.close()`, then the HTTP server
   closes (mirrors Canvas ADE's PTY/WebContentsView teardown discipline).
+- **Session reaping (audit Phase A)** — an idle sweep closes sessions with no request activity AND
+  no open SSE stream for `CANVAS_ADE_SESSION_IDLE_TTL_MS` (default 30 min; ≤ 0 disables) — a client
+  that died without `DELETE /mcp` no longer leaks its transport + status listener. A reaped client
+  404s and re-initializes per the streamable-HTTP spec. The host can also revoke a specific board's
+  live sessions via `RunningMcpServer.closeSessionsForBoard(boardId)` (wired into board teardown).
+- **Worker read-scope (audit Phase A)** — every board observation resource is read-scoped per
+  session (`src/resources/scope.ts`): a WORKER session reads only its OWN board (list resources
+  filtered; a per-board read of a sibling id is refused), closing the cross-worker scrollback
+  exfiltration path. orchestrator / lead / connected read everything (they hold spawn + dispatch).
 - `handleRequest(req, res, parsedBody)` — Express's `express.json()` pre-parses `req.body`; pass it
   as the 3rd arg so the stream isn't read twice.
 
 ## Auth + the tier decision flow (the security core)
 
 ```
-express.json()  ->  originGuard(allowlist)  ->  requireBearerAuth({ verifier })  ->  /mcp handler
-                          │                            │                                 │
-                   Origin not allowed → 403     bad/absent token → 401          ctxFromAuth(req.auth)
-                                                  sets req.auth from verifier      → factory.getServer(tier)
-                                                  (extra:{tier,boardId})           registers ONLY tier's tools
+hostGuard  ->  originGuard(allowlist)  ->  requireBearerAuth({ verifier })  ->  express.json({limit:'1mb'})  ->  /mcp handler  ->  error middleware
+    │                  │                            │                                    │                          │                    │
+ non-loopback     Origin not allowed → 403   bad/absent token → 401              parse AFTER auth,          ctxFromAuth(req.auth)   any error past the
+ /missing Host                               sets req.auth from verifier         only on /mcp               → factory.getServer     routes → JSON-RPC
+ → 403                                       (extra:{tier,boardId})                                         registers ONLY the      shape (400 parse /
+                                                                                                            tier's tools            413 too-large / 500),
+                                                                                                                                    never a stack trace
 ```
 
 - `src/auth/verifier.ts` — `OAuthTokenVerifier.verifyAccessToken(token)` looks the token up in the

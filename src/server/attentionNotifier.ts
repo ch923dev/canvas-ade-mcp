@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
-import { ATTENTION_BUCKETS, ATTENTION_URI } from '../resources/attention'
+import { ATTENTION_BUCKETS, ATTENTION_URI, selectAttention } from '../resources/attention'
 
 export interface AttentionNotifier {
   /** Unsubscribe from the orchestrator status stream (called on session close). */
@@ -39,6 +39,23 @@ export function createAttentionNotifier(deps: {
       // post-close / not-connected emit — drop it; the fan-out must not throw
     }
   })
+
+  // Level-trigger seed (audit Phase A): `inAttention` starts empty, so a board ALREADY
+  // in an attention bucket before this session opened had `wasAttn === false` — its
+  // later LEAVE (blocked → idle) would compare equal and be silently swallowed, leaving
+  // the client's view stale forever. Subscribe FIRST (above, the barrierWaiter
+  // discipline), then seed from one level read. The seed only ADDS: a change that
+  // raced in between subscribe and this read already updated the set itself, and the
+  // worst case is one SPURIOUS notification (the client re-reads a correct resource),
+  // never a missed leave after the seed lands. Best-effort — a host without listBoards
+  // wired (bare test stubs) just skips the seed.
+  void (async () => {
+    try {
+      for (const b of selectAttention(await orchestrator.listBoards())) inAttention.add(b.id)
+    } catch {
+      // seed is best-effort; the notifier still tracks every post-subscribe edge
+    }
+  })()
 
   return { dispose: unsub }
 }

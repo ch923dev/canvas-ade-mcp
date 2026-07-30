@@ -19,6 +19,10 @@ describe('PromptRegistry (tier gating + render)', () => {
     expect(promptRegistry.list('connected').map((s) => s.name)).toContain('canvas-orientation')
   })
 
+  it('list: lead tier includes canvas-orientation (audit Phase A — added when 0.22.1 missed it)', () => {
+    expect(promptRegistry.list('lead').map((s) => s.name)).toContain('canvas-orientation')
+  })
+
   it('get: orchestrator + valid name → non-empty user/text messages', () => {
     const messages = promptRegistry.get('canvas-orientation', 'orchestrator', {})
     expect(messages).not.toBeNull()
@@ -81,6 +85,16 @@ describe('prompts over the wire (tier-gated)', () => {
 
   it('connected prompts/list includes canvas-orientation', async () => {
     const client = await connectInMemory('connected')
+    try {
+      const names = (await client.listPrompts()).prompts.map((p) => p.name)
+      expect(names).toContain('canvas-orientation')
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('lead prompts/list includes canvas-orientation (no longer empty, audit Phase A)', async () => {
+    const client = await connectInMemory('lead')
     try {
       const names = (await client.listPrompts()).prompts.map((p) => p.name)
       expect(names).toContain('canvas-orientation')

@@ -5,7 +5,8 @@ import { resolveBarrierTimeout } from '../../src/server/tools/barriers'
 import {
   TOOL_WAIT_FOR_IDLE,
   TOOL_WAIT_FOR_ALL,
-  DEFAULT_BARRIER_TIMEOUT_MS
+  DEFAULT_BARRIER_TIMEOUT_MS,
+  MAX_ACTIVE_BARRIERS
 } from '../../src/constants'
 
 function readText(content: unknown): string {
@@ -99,6 +100,41 @@ describe('barrier tools (M5, orchestrator-tier)', () => {
     })
     expect(res.isError).toBeFalsy()
     expect(JSON.parse(readText(res.content))).toEqual({ id: 't1', status: 'timed-out' })
+    await client.close()
+  })
+
+  it('🔒 caps concurrent waits per session; the over-cap call is a structured isError', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.boards = Array.from({ length: MAX_ACTIVE_BARRIERS + 1 }, (_, i) => ({
+      id: `b${i}`,
+      type: 'terminal',
+      title: `B${i}`,
+      status: 'running'
+    }))
+    const client = await connectInMemory('orchestrator', orch)
+    // Fill the cap with never-settling waits (boards stay running; no backstop).
+    const inflight = Array.from({ length: MAX_ACTIVE_BARRIERS }, (_, i) =>
+      client.callTool({
+        name: TOOL_WAIT_FOR_IDLE,
+        arguments: { boardId: `b${i}`, timeoutMs: 0 }
+      })
+    )
+    // Let the requests land server-side before probing the cap.
+    await new Promise((r) => setTimeout(r, 25))
+    const over = await client.callTool({
+      name: TOOL_WAIT_FOR_IDLE,
+      arguments: { boardId: `b${MAX_ACTIVE_BARRIERS}`, timeoutMs: 0 }
+    })
+    expect(over.isError).toBe(true)
+    expect(readText(over.content)).toContain('too many concurrent barrier waits')
+    // Settle every board so the in-flight waits resolve and a slot frees up again.
+    for (let i = 0; i < MAX_ACTIVE_BARRIERS + 1; i++) orch.emit({ id: `b${i}`, status: 'idle' })
+    await Promise.all(inflight)
+    const after = await client.callTool({
+      name: TOOL_WAIT_FOR_IDLE,
+      arguments: { boardId: 'b0', timeoutMs: 0 }
+    })
+    expect(after.isError).toBeFalsy()
     await client.close()
   })
 

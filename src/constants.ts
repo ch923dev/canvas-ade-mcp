@@ -372,5 +372,30 @@ export const TOOL_WAIT_FOR_ALL = 'wait_for_all'
  * omitted. Env-tunable via `CANVAS_ADE_BARRIER_TIMEOUT_MS` (finite, > 0, else ignored).
  * A per-call `timeoutMs` ≤ 0 or non-finite opts out entirely (mirrors the mcpConfirm
  * 10-min backstop convention — settle-and-report never throws on expiry).
+ * `handoff_prompt` (the other blocking wait) shares the same default + env knob.
  */
 export const DEFAULT_BARRIER_TIMEOUT_MS = 30 * 60_000
+
+/**
+ * 🔒 Cap on CONCURRENT in-flight barrier waits per session (audit Phase A). Each wait
+ * holds one `subscribeStatus` listener on the host; without a cap a client controls
+ * that allocation unboundedly (the same class of risk the resources/subscribe
+ * allowlist closes). 16 comfortably covers a real fan-out JOIN (`wait_for_all` takes
+ * a LIST, so one wait already joins N boards) while bounding the listener count.
+ */
+export const MAX_ACTIVE_BARRIERS = 16
+
+/**
+ * Default idle TTL for a session with no requests AND no open SSE stream (audit
+ * Phase A). A session whose client died without `DELETE /mcp` (crashed agent,
+ * force-killed board) would otherwise leak its transport + McpServer + status
+ * listener until app quit. Reaping is safe by spec: a client whose session was
+ * reaped gets 404 on its next request and MUST re-initialize (streamable HTTP).
+ * Env-tunable via `CANVAS_ADE_SESSION_IDLE_TTL_MS` (finite; ≤ 0 disables the sweep).
+ * A live client is never reaped: an open GET-SSE stream or an in-flight request
+ * (e.g. a blocking barrier) counts as activity.
+ */
+export const DEFAULT_SESSION_IDLE_TTL_MS = 30 * 60_000
+
+/** Upper bound on the idle-sweep tick interval (the sweep runs at min(TTL, this)). */
+export const SESSION_SWEEP_MAX_INTERVAL_MS = 60_000

@@ -5,27 +5,40 @@ import { registerAttentionResource } from './attention'
 import { registerBoardOutputResource } from './output'
 import { registerBoardResultResource } from './result'
 import { registerMemoryResources } from './memory'
+import { assertBoardReadable, scopeBoardList, type ResourceScope } from './scope'
 
 /**
- * Registers the read-only board observation resources. Available to BOTH tiers —
- * observation is safe (no write, no cross-agent influence):
+ * Registers the read-only board observation resources. Available to EVERY tier, but
+ * 🔒 READ-SCOPED per session (audit Phase A): a WORKER session sees only its own
+ * board — the list resources are filtered to it and every `canvas://board/{id}/…`
+ * read of another board is refused (see {@link ResourceScope} for the rationale).
+ * orchestrator / lead / connected read everything (they already hold spawn+dispatch).
  *
- * - `canvas://boards` — the full board list (id/type/title + coarse status bucket).
+ * - `canvas://boards` — the board list (id/type/title + coarse status bucket).
  * - `canvas://board/{id}/status` — one board's coarse status bucket (T1.1). The
  *   bucket is derived host-side from the live runtime (terminal PTY + browser load
  *   state) and is the same value an agent sees in `canvas://boards` and a human sees
  *   on the board's on-canvas status pill — one source of truth.
  * - `canvas://board/{id}/cards` — one Kanban board's columns + cards (P3b), grouped
  *   host-side. The read half of the card mutation loop; a non-kanban board reads an
- *   empty shell. Both tiers (observation is safe).
+ *   empty shell.
  */
-export function registerBoardResources(server: McpServer, orchestrator: Orchestrator): void {
+export function registerBoardResources(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  scope: ResourceScope
+): void {
   server.registerResource(
     'boards',
     'canvas://boards',
     { description: 'List of boards currently on the canvas.', mimeType: 'application/json' },
     async (uri) => ({
-      contents: [{ uri: uri.href, text: JSON.stringify(await orchestrator.listBoards()) }]
+      contents: [
+        {
+          uri: uri.href,
+          text: JSON.stringify(scopeBoardList(scope, await orchestrator.listBoards()))
+        }
+      ]
     })
   )
 
@@ -40,6 +53,7 @@ export function registerBoardResources(server: McpServer, orchestrator: Orchestr
     async (uri, variables) => {
       const id = Array.isArray(variables.id) ? variables.id[0] : variables.id
       if (!id) throw new Error('canvas://board/{id}/status: missing board id')
+      assertBoardReadable(scope, id, 'canvas://board/{id}/status')
       const status = await orchestrator.boardStatus(id)
       return { contents: [{ uri: uri.href, text: JSON.stringify({ id, status }) }] }
     }
@@ -57,6 +71,7 @@ export function registerBoardResources(server: McpServer, orchestrator: Orchestr
     async (uri, variables) => {
       const id = Array.isArray(variables.id) ? variables.id[0] : variables.id
       if (!id) throw new Error('canvas://board/{id}/cards: missing board id')
+      assertBoardReadable(scope, id, 'canvas://board/{id}/cards')
       const cards = await orchestrator.boardCards(id)
       return { contents: [{ uri: uri.href, text: JSON.stringify(cards) }] }
     }
@@ -76,14 +91,15 @@ export function registerBoardResources(server: McpServer, orchestrator: Orchestr
     async (uri, variables) => {
       const id = Array.isArray(variables.id) ? variables.id[0] : variables.id
       if (!id) throw new Error('canvas://board/{id}/planning: missing board id')
+      assertBoardReadable(scope, id, 'canvas://board/{id}/planning')
       const planning = await orchestrator.boardPlanning(id)
       return { contents: [{ uri: uri.href, text: JSON.stringify(planning) }] }
     }
   )
 
-  registerBoardStatesResource(server, orchestrator)
-  registerAttentionResource(server, orchestrator)
-  registerBoardOutputResource(server, orchestrator)
-  registerBoardResultResource(server, orchestrator)
-  registerMemoryResources(server, orchestrator)
+  registerBoardStatesResource(server, orchestrator, scope)
+  registerAttentionResource(server, orchestrator, scope)
+  registerBoardOutputResource(server, orchestrator, scope)
+  registerBoardResultResource(server, orchestrator, scope)
+  registerMemoryResources(server, orchestrator, scope)
 }

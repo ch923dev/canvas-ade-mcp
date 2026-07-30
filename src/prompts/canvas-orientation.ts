@@ -8,7 +8,9 @@ import { promptRegistry, type PromptMessage } from './registry'
  * → render pipeline with no async path and no mock — the safest baseline the
  * Wave-2 playbooks (review-pr, fan-out-and-compare, triage) build on.
  *
- * Visible to `orchestrator` and `connected`; `worker` sees no prompts.
+ * Visible to `orchestrator`, `connected`, and `lead`; `worker` sees no prompts.
+ * (`lead` added in audit Phase A — the tier shipped in 0.22.1 without being added
+ * here, leaving a lead session's prompts/list empty.)
  */
 promptRegistry.register({
   name: 'canvas-orientation',
@@ -17,7 +19,7 @@ promptRegistry.register({
     'and the three safety rules every agent must follow. ' +
     'Invoke this prompt at the start of any session to orient yourself.',
   argsSchema: z.object({}),
-  tiers: ['orchestrator', 'connected'],
+  tiers: ['orchestrator', 'connected', 'lead'],
   build(_args): PromptMessage[] {
     return [
       {
@@ -39,7 +41,12 @@ promptRegistry.register({
               'wait for barriers, tidy the canvas, write planning elements (when consent is granted).',
             '- **connected** — scoped surface: spawn/configure boards, relay prompts ' +
               'along YOUR outgoing cables only, write planning elements (when consent granted).',
-            '- **worker** — read-only + write_result for YOUR board only.',
+            '- **lead** — the orchestration core over the wire: spawn boards/groups ' +
+              '(auto-cabled lead→spawned), dispatch along YOUR outgoing cables ' +
+              '(relay_prompt / relay_prompts / assign_prompt), JOIN with the barriers ' +
+              '(wait_for_idle / wait_for_all), write planning elements (when consent granted).',
+            '- **worker** — read-only + write_result for YOUR board only (your reads are ' +
+              'scoped to YOUR board).',
             '',
             '## The three safety rules',
             '1. **Every cross-board PTY write passes runGatedWrite.** ' +

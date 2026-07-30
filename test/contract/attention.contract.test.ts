@@ -106,7 +106,7 @@ describe('canvas://boards resource', () => {
         ]
       }
     }
-    const client = await connectInMemory('worker', new IdentityOrchestrator())
+    const client = await connectInMemory('orchestrator', new IdentityOrchestrator())
     const res = await client.readResource({ uri: 'canvas://boards' })
     expect(JSON.parse(readText(res.contents))).toEqual([
       {
@@ -121,16 +121,39 @@ describe('canvas://boards resource', () => {
     ])
     await client.close()
   })
+
+  it('🔒 a worker sees ONLY its own board in the list (read-scope, audit Phase A)', async () => {
+    const client = await connectInMemory('worker', new MixedOrchestrator(), 't2')
+    const res = await client.readResource({ uri: 'canvas://boards' })
+    expect(JSON.parse(readText(res.contents)).map((b: { id: string }) => b.id)).toEqual(['t2'])
+    await client.close()
+  })
+
+  it('🔒 an unbound worker (boardId "") sees an empty list', async () => {
+    const client = await connectInMemory('worker', new MixedOrchestrator(), '')
+    const res = await client.readResource({ uri: 'canvas://boards' })
+    expect(JSON.parse(readText(res.contents))).toEqual([])
+    await client.close()
+  })
 })
 
 describe('canvas://attention resource', () => {
   it('lists the boards needing a human, with full detail', async () => {
-    const client = await connectInMemory('worker', new MixedOrchestrator())
+    const client = await connectInMemory('orchestrator', new MixedOrchestrator())
     const res = await client.readResource({ uri: 'canvas://attention' })
     expect(JSON.parse(readText(res.contents))).toEqual([
       { id: 't2', type: 'terminal', title: 'Wait', status: 'awaiting-review' },
       { id: 't3', type: 'terminal', title: 'Block', status: 'blocked' },
       { id: 'b1', type: 'browser', title: 'Web', status: 'failed' }
+    ])
+    await client.close()
+  })
+
+  it("🔒 a worker's attention view covers only its own board (read-scope, audit Phase A)", async () => {
+    const client = await connectInMemory('worker', new MixedOrchestrator(), 't3')
+    const res = await client.readResource({ uri: 'canvas://attention' })
+    expect(JSON.parse(readText(res.contents))).toEqual([
+      { id: 't3', type: 'terminal', title: 'Block', status: 'blocked' }
     ])
     await client.close()
   })

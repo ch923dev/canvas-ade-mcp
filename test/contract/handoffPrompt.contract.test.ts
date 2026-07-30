@@ -77,4 +77,34 @@ describe('handoff_prompt tool (T4.3, dispatch write)', () => {
     expect(orch.handedOff).toEqual([])
     await client.close()
   })
+
+  it('backstop: a hung host handoff settles as a timed-out isError (audit Phase A)', async () => {
+    class HungOrchestrator extends MockOrchestrator {
+      override handoffPrompt(): Promise<BoardResult> {
+        return new Promise<BoardResult>(() => {}) // never settles
+      }
+    }
+    const client = await connectInMemory('orchestrator', new HungOrchestrator())
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'board-7', prompt: 'run', timeoutMs: 20 }
+    })
+    expect(res.isError).toBe(true)
+    const text = (res.content as Array<{ text?: string }>).map((c) => c.text ?? '').join('')
+    expect(text).toContain('timed out')
+    expect(text).toContain('canvas://board/board-7/result')
+    await client.close()
+  })
+
+  it('timeoutMs <= 0 opts out of the backstop (the pre-Phase-A blocking behaviour)', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    const res = await client.callTool({
+      name: TOOL,
+      arguments: { boardId: 'board-7', prompt: 'run', timeoutMs: 0 }
+    })
+    expect(res.isError).toBeFalsy()
+    expect(orch.handedOff).toEqual([{ id: 'board-7', text: 'run' }])
+    await client.close()
+  })
 })

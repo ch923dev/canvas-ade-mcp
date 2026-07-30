@@ -2,6 +2,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
 import type { BoardOutput, Orchestrator } from '../orchestrator/Orchestrator'
 import { MAX_OUTPUT_PAGE } from '../constants'
+import { assertBoardReadable, type ResourceScope } from './scope'
 
 /** First value of a templated URI variable (templates yield string | string[]). */
 function first(v: string | string[] | undefined): string | undefined {
@@ -18,11 +19,15 @@ function first(v: string | string[] | undefined): string | undefined {
  */
 async function readPage(
   orchestrator: Orchestrator,
+  scope: ResourceScope,
   uriHref: string,
   variables: Variables
 ): Promise<{ contents: Array<{ uri: string; text: string }> }> {
   const id = first(variables.id)
   if (!id) throw new Error('canvas://board/{id}/output: missing board id')
+  // 🔒 Raw scrollback is the MOST sensitive read surface (echoed secrets, env dumps,
+  // another task's source) — a worker reads only its own board (audit Phase A).
+  assertBoardReadable(scope, id, 'canvas://board/{id}/output')
   // A cursor, when supplied, must be a non-negative integer (chars-from-end). A
   // malformed value is NOT silently coerced to "newest tail" — that would loop an
   // agent forever (it pages with garbage, keeps getting page 1). Fail loud instead.
@@ -65,7 +70,11 @@ async function readPage(
  * Their regexes are mutually exclusive (`…/output$` vs `…/output\?cursor=…$`), so
  * each concrete read routes to exactly one. Both delegate to `readPage`.
  */
-export function registerBoardOutputResource(server: McpServer, orchestrator: Orchestrator): void {
+export function registerBoardOutputResource(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  scope: ResourceScope
+): void {
   const meta = {
     description:
       "A capped, paginated, ANSI-stripped page of a board's recent output (tail-anchored; pass nextCursor as ?cursor for older).",
@@ -75,12 +84,12 @@ export function registerBoardOutputResource(server: McpServer, orchestrator: Orc
     'board-output',
     new ResourceTemplate('canvas://board/{id}/output', { list: undefined }),
     meta,
-    (uri, variables) => readPage(orchestrator, uri.href, variables)
+    (uri, variables) => readPage(orchestrator, scope, uri.href, variables)
   )
   server.registerResource(
     'board-output-paged',
     new ResourceTemplate('canvas://board/{id}/output{?cursor}', { list: undefined }),
     meta,
-    (uri, variables) => readPage(orchestrator, uri.href, variables)
+    (uri, variables) => readPage(orchestrator, scope, uri.href, variables)
   )
 }
