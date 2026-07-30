@@ -1,10 +1,5 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import {
-  ErrorCode,
-  McpError,
-  SubscribeRequestSchema,
-  UnsubscribeRequestSchema
-} from '@modelcontextprotocol/sdk/types.js'
+import { ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { ATTENTION_URI } from '../resources/attention'
 
 export interface ResourceSubscriptions {
@@ -31,17 +26,17 @@ const SUBSCRIBABLE: ReadonlySet<string> = new Set([ATTENTION_URI])
 export function installResourceSubscriptions(server: McpServer): ResourceSubscriptions {
   const uris = new Set<string>()
   server.server.registerCapabilities({ resources: { subscribe: true } })
-  server.server.setRequestHandler(SubscribeRequestSchema, async (req) => {
+  server.server.setRequestHandler('resources/subscribe', async (req) => {
     const { uri } = req.params
     // 🔒 Bound the per-session Set to the allowlist: a subscribe to a URI that never updates
     // fails loudly (InvalidParams) instead of silently never firing + allocating forever.
     if (!SUBSCRIBABLE.has(uri)) {
-      throw new McpError(ErrorCode.InvalidParams, `resource is not subscribable: ${uri}`)
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `resource is not subscribable: ${uri}`)
     }
     uris.add(uri)
     return {}
   })
-  server.server.setRequestHandler(UnsubscribeRequestSchema, async (req) => {
+  server.server.setRequestHandler('resources/unsubscribe', async (req) => {
     uris.delete(req.params.uri)
     return {}
   })

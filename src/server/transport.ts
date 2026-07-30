@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { isInitializeRequest } from "@modelcontextprotocol/server";
+import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
 import {
   DEFAULT_SESSION_IDLE_TTL_MS,
   HEADER_SESSION_ID,
@@ -52,7 +52,7 @@ function resolveIdleTtl(): number {
  * v2 bump (which renames the transport) is a one-file change.
  */
 export class SessionManager {
-  private readonly transports = new Map<string, StreamableHTTPServerTransport>()
+  private readonly transports = new Map<string, NodeStreamableHTTPServerTransport>()
   /** Per-session teardown (M5 notifier unsubscribe + in-flight barrier cancel). */
   private readonly disposers = new Map<string, () => void>()
   /** 🔒 PKG-N1: the {tier,boardId} of the token that CREATED each session (ownership key). */
@@ -102,7 +102,7 @@ export class SessionManager {
     }
 
     const { server, dispose } = this.factory.getServer(ctx)
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new NodeStreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => {
         this.transports.set(id, transport)

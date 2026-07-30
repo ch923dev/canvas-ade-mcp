@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
 import { TOOL_ORCHESTRATOR_PING } from '../../src/constants'
 
@@ -31,11 +30,10 @@ describe('tier enforcement at tools/call (real HTTP)', () => {
 
   it('a worker calling orchestrator_ping is rejected', async () => {
     const client = await connect('tok-worker')
-    // The unregistered tool yields an isError result ("Tool ... not found"), not
-    // a thrown rejection — either way the worker cannot invoke it.
-    const res = await client.callTool({ name: TOOL_ORCHESTRATOR_PING })
-    expect(res.isError).toBe(true)
-    expect(JSON.stringify(res)).toContain('not found')
+    // SDK v1 answered an unregistered tool with an isError RESULT; SDK v2 answers
+    // method-not-found at the protocol layer, so the call REJECTS. Either way the
+    // worker cannot invoke it — the tier gate still holds at tools/call.
+    await expect(client.callTool({ name: TOOL_ORCHESTRATOR_PING })).rejects.toThrow(/not found/)
     await client.close()
   })
 

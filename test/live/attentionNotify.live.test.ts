@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { ResourceUpdatedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
 import { EmittingOrchestrator } from '../helpers/emittingOrchestrator'
 
@@ -25,7 +23,7 @@ describe('canvas://attention push over real SSE', () => {
     )
 
     const got = new Promise<string>((resolve) => {
-      client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => resolve(n.params.uri))
+      client.setNotificationHandler('notifications/resources/updated', (n) => resolve(n.params.uri))
     })
     await client.subscribeResource({ uri: 'canvas://attention' })
 

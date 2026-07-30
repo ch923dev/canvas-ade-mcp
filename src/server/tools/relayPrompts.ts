@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator, RelayResult } from '../../orchestrator/Orchestrator'
 import type { BoardId } from '../../types'
 import type { SessionCtx } from '../factory'
@@ -42,18 +42,18 @@ export function registerRelayPrompts(
         `(up to ${MAX_RELAY_BATCH}). Each item is { sourceId, targetId, prompt }; every cable must ` +
         'already exist and both ends be terminals. The human approves per row and each approved ' +
         `item runs as a single command line. items required (1..${MAX_RELAY_BATCH}).`,
-      inputSchema: {
-        items: z
-          .array(
-            z.object({
-              sourceId: z.string().min(1),
-              targetId: z.string().min(1),
-              prompt: dispatchPromptSchema
+      inputSchema: z.object({
+              items: z
+                .array(
+                  z.object({
+                    sourceId: z.string().min(1),
+                    targetId: z.string().min(1),
+                    prompt: dispatchPromptSchema
+                  })
+                )
+                .min(1)
+                .max(MAX_RELAY_BATCH)
             })
-          )
-          .min(1)
-          .max(MAX_RELAY_BATCH)
-      }
     },
     async (args) => {
       // 🔒 Tier-aware caller-identity binding, applied to EVERY item (mirrors relay_prompt). A

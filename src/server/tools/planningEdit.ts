@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator, PlanningElementPatch } from '../../orchestrator/Orchestrator'
 import {
   MAX_PLANNING_DIAGRAM,
@@ -45,45 +45,45 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
         'and send the minimal delta); arrow → dx/dy. A ' +
         "field that doesn't match the element's kind is rejected. Human-confirmed before it lands; the " +
         'edit renders as passive content and never runs anything.',
-      inputSchema: {
-        boardId,
-        elementId,
-        // ── note / text ───────────────────────────────────────────────────────────
-        text: z.string().min(1).max(MAX_PLANNING_TEXT).optional(),
-        tint: z.enum(['yellow', 'blue', 'green', 'plain']).optional(),
-        // ── checklist ─────────────────────────────────────────────────────────────
-        title: z.string().min(1).max(MAX_PLANNING_TITLE).optional(),
-        setItems: z
-          .array(
-            z.object({
-              id: z.string().min(1).max(MAX_PLANNING_ELEMENT_ID),
-              label: z.string().min(1).max(MAX_PLANNING_LABEL).optional(),
-              done: z.boolean().optional()
+      inputSchema: z.object({
+              boardId,
+              elementId,
+              // ── note / text ───────────────────────────────────────────────────────────
+              text: z.string().min(1).max(MAX_PLANNING_TEXT).optional(),
+              tint: z.enum(['yellow', 'blue', 'green', 'plain']).optional(),
+              // ── checklist ─────────────────────────────────────────────────────────────
+              title: z.string().min(1).max(MAX_PLANNING_TITLE).optional(),
+              setItems: z
+                .array(
+                  z.object({
+                    id: z.string().min(1).max(MAX_PLANNING_ELEMENT_ID),
+                    label: z.string().min(1).max(MAX_PLANNING_LABEL).optional(),
+                    done: z.boolean().optional()
+                  })
+                )
+                .max(MAX_PLANNING_ITEMS)
+                .optional(),
+              addItems: z
+                .array(
+                  z.object({
+                    label: z.string().min(1).max(MAX_PLANNING_LABEL),
+                    done: z.boolean().optional()
+                  })
+                )
+                .max(MAX_PLANNING_ITEMS)
+                .optional(),
+              removeItemIds: z
+                .array(z.string().min(1).max(MAX_PLANNING_ELEMENT_ID))
+                .max(MAX_PLANNING_ITEMS)
+                .optional(),
+              // ── diagram (Mermaid engine) ──────────────────────────────────────────────
+              source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
+              // ── diagram (expanse engine, Phase 3) ─────────────────────────────────────
+              specOps: specOpsArraySchema.optional(),
+              // ── arrow ─────────────────────────────────────────────────────────────────
+              dx: z.number().finite().optional(),
+              dy: z.number().finite().optional()
             })
-          )
-          .max(MAX_PLANNING_ITEMS)
-          .optional(),
-        addItems: z
-          .array(
-            z.object({
-              label: z.string().min(1).max(MAX_PLANNING_LABEL),
-              done: z.boolean().optional()
-            })
-          )
-          .max(MAX_PLANNING_ITEMS)
-          .optional(),
-        removeItemIds: z
-          .array(z.string().min(1).max(MAX_PLANNING_ELEMENT_ID))
-          .max(MAX_PLANNING_ITEMS)
-          .optional(),
-        // ── diagram (Mermaid engine) ──────────────────────────────────────────────
-        source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
-        // ── diagram (expanse engine, Phase 3) ─────────────────────────────────────
-        specOps: specOpsArraySchema.optional(),
-        // ── arrow ─────────────────────────────────────────────────────────────────
-        dx: z.number().finite().optional(),
-        dy: z.number().finite().optional()
-      }
     },
     async (args) => {
       // `source` and `specOps` target different diagram ENGINES — never both in one patch
@@ -118,7 +118,7 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
         'Remove ONE element from a PLANNING board by id (from canvas://board/{id}/planning). Use this ' +
         'to delete a stray duplicate an older append-only write left behind. This is destructive and is ' +
         'human-confirmed before it lands.',
-      inputSchema: { boardId, elementId }
+      inputSchema: z.object({ boardId, elementId })
     },
     async (args) => {
       await orchestrator.removePlanningElement(args.boardId, args.elementId)

@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { ATTENTION_BUCKETS, ATTENTION_URI, selectAttention } from '../resources/attention'
 

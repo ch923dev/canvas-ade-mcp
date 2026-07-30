@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import {
   MAX_CARD_ASSIGNEE,
@@ -74,7 +74,7 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         '{path, line?, endLine?}, path project-root-relative). Returns the new card id — use it with ' +
         'move_card/update_card/remove_card. Every write is shown to the human for confirmation ' +
         'before it lands; a card renders as passive content and never runs anything.',
-      inputSchema: { boardId, columnId, title, tag, assignee, ref, description, tags, fileRefs }
+      inputSchema: z.object({ boardId, columnId, title, tag, assignee, ref, description, tags, fileRefs })
     },
     async (args) => {
       const { id } = await orchestrator.addCard(args.boardId, {
@@ -98,7 +98,7 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         'Move an existing card to another column on the same KANBAN board (e.g. advance it from ' +
         '"in-progress" to "review"). cardId is the id returned by add_card; toColumnId is a column ' +
         'on the board. Human-confirmed before it lands.',
-      inputSchema: { boardId, cardId, toColumnId: columnId }
+      inputSchema: z.object({ boardId, cardId, toColumnId: columnId })
     },
     async (args) => {
       await orchestrator.moveCard(args.boardId, args.cardId, args.toColumnId)
@@ -117,17 +117,17 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         "REPLACES the card's chips and supersedes the singular tag; fileRefs (array of " +
         "{path, line?, endLine?}) REPLACES the card's file references; description sets the modal " +
         'body. cardId is the id returned by add_card. Human-confirmed before it lands.',
-      inputSchema: {
-        boardId,
-        cardId,
-        title: title.optional(),
-        tag,
-        assignee,
-        ref,
-        description,
-        tags,
-        fileRefs
-      }
+      inputSchema: z.object({
+              boardId,
+              cardId,
+              title: title.optional(),
+              tag,
+              assignee,
+              ref,
+              description,
+              tags,
+              fileRefs
+            })
     },
     async (args) => {
       await orchestrator.updateCard(args.boardId, args.cardId, {
@@ -149,7 +149,7 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
       description:
         'Remove a card from a KANBAN board. cardId is the id returned by add_card. This is ' +
         'destructive and is human-confirmed before it lands.',
-      inputSchema: { boardId, cardId }
+      inputSchema: z.object({ boardId, cardId })
     },
     async (args) => {
       await orchestrator.removeCard(args.boardId, args.cardId)

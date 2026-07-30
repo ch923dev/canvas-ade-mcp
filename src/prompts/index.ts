@@ -1,10 +1,5 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import {
-  ErrorCode,
-  GetPromptRequestSchema,
-  ListPromptsRequestSchema,
-  McpError
-} from '@modelcontextprotocol/sdk/types.js'
+import { ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { SessionCtx } from '../server/factory'
 import type { PromptArgs } from './registry'
 import { promptRegistry } from './registry'
@@ -36,7 +31,7 @@ export { PromptRegistry, promptRegistry } from './registry'
 export function registerPrompts(server: McpServer, ctx: SessionCtx): void {
   server.server.registerCapabilities({ prompts: {} })
 
-  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({
+  server.server.setRequestHandler('prompts/list', () => ({
     prompts: promptRegistry.list(ctx.tier).map((spec) => ({
       name: spec.name,
       description: spec.description,
@@ -44,15 +39,15 @@ export function registerPrompts(server: McpServer, ctx: SessionCtx): void {
     }))
   }))
 
-  server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
+  server.server.setRequestHandler('prompts/get', (request) => {
     const messages = promptRegistry.get(
       request.params.name,
       ctx.tier,
       (request.params.arguments ?? {}) as PromptArgs
     )
     if (!messages) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
+      throw new ProtocolError(
+        ProtocolErrorCode.InvalidParams,
         `Prompt '${request.params.name}' not found or not available for tier '${ctx.tier}'.`
       )
     }

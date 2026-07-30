@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
+import type { AuthInfo } from "@modelcontextprotocol/server";
 import { ctxFromAuth } from '../../src/server/mcpHttp'
 
 // D5: the session context is derived SOLELY from the verified token's `extra`.

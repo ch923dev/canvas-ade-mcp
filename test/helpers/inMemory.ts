@@ -1,5 +1,4 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { Orchestrator } from '../../src/orchestrator/Orchestrator'
 import { ServerFactory } from '../../src/server/factory'

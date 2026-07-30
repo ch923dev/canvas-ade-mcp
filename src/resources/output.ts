@@ -1,5 +1,5 @@
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js'
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
+import type { Variables } from "@modelcontextprotocol/server";
 import type { BoardOutput, Orchestrator } from '../orchestrator/Orchestrator'
 import { MAX_OUTPUT_PAGE } from '../constants'
 import { assertBoardReadable, type ResourceScope } from './scope'

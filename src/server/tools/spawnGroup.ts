@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import { SPAWN_GROUP_MAX_LAUNCH, SPAWN_GROUP_MAX_NAME, TOOL_SPAWN_GROUP } from '../../constants'
@@ -36,12 +36,12 @@ export function registerSpawnGroup(
         'launchCommand is the first PTY line written on the terminal member (an exec vector — ' +
         'the host sanitizes it). Returns the minted ids of every created member as JSON. Subject ' +
         'to the spawn concurrency cap (the whole cluster is reserved before any board is created).',
-      inputSchema: {
-        name: z.string().min(1).max(SPAWN_GROUP_MAX_NAME),
-        planning: z.boolean().optional(),
-        browser: z.boolean().optional(),
-        launchCommand: z.string().max(SPAWN_GROUP_MAX_LAUNCH).optional()
-      }
+      inputSchema: z.object({
+              name: z.string().min(1).max(SPAWN_GROUP_MAX_NAME),
+              planning: z.boolean().optional(),
+              browser: z.boolean().optional(),
+              launchCommand: z.string().max(SPAWN_GROUP_MAX_LAUNCH).optional()
+            })
     },
     async (args) => {
       const result = await orchestrator.spawnGroup({

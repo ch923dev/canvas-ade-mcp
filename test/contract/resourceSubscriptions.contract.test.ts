@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
+import { Client } from "@modelcontextprotocol/client";
+import { McpServer, InMemoryTransport } from "@modelcontextprotocol/server";
 import { installResourceSubscriptions } from '../../src/server/resourceSubscriptions'
 
 async function wired(): Promise<{ client: Client; isSubscribed: (u: string) => boolean }> {

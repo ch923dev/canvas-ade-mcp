@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { ResourceUpdatedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import { connectInMemory } from '../helpers/inMemory'
 import { EmittingOrchestrator } from '../helpers/emittingOrchestrator'
 
 /** Collect resources/updated URIs the client receives. */
 function collectUpdates(client: Awaited<ReturnType<typeof connectInMemory>>): string[] {
   const got: string[] = []
-  client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+  client.setNotificationHandler('notifications/resources/updated', (n) => {
     got.push(n.params.uri)
   })
   return got
