@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { BoardSummary, Orchestrator } from '../orchestrator/Orchestrator'
 import { scopeBoardList, type ResourceScope } from './scope'
 

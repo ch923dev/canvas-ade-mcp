@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import {
   DEFAULT_BARRIER_TIMEOUT_MS,
@@ -73,10 +73,10 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
         '(idle/awaiting-review/blocked/failed/static/gone, or timed-out). Returns the board ' +
         "id + status (+ the board's last write_result when idle). boardId is required; " +
         'optional timeoutMs (omit for the default backstop; <=0 to wait indefinitely).',
-      inputSchema: {
-        boardId: z.string().min(1),
-        timeoutMs: z.number().optional()
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1),
+              timeoutMs: z.number().optional()
+            })
     },
     async (args) => {
       const results = await run([args.boardId], resolveBarrierTimeout(args.timeoutMs))
@@ -94,10 +94,10 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
         '(same statuses as wait_for_idle) plus allIdle (true when every target settled to ' +
         'idle). boardIds is a non-empty array; optional timeoutMs (omit for the default ' +
         'backstop; <=0 to wait indefinitely).',
-      inputSchema: {
-        boardIds: z.array(z.string().min(1)).min(1),
-        timeoutMs: z.number().optional()
-      }
+      inputSchema: z.object({
+              boardIds: z.array(z.string().min(1)).min(1),
+              timeoutMs: z.number().optional()
+            })
     },
     async (args) => {
       const boards = await run(args.boardIds, resolveBarrierTimeout(args.timeoutMs))

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { MAX_COLUMN_ID, TOOL_PUBLISH_FINDINGS } from '../../constants'
 
@@ -32,10 +32,10 @@ export function registerPublishFindings(server: McpServer, orchestrator: Orchest
         'Publish the run\'s merged worker findings onto a KANBAN board as ONE human-confirmed batch — the end-of-run step after your workers have reported. boardId must be an existing kanban board id (from spawn_board or canvas://boards); optional lane overrides the destination column (by default each finding is routed by its severity: crit/high/med → "review", low/unknown → "backlog"). ' +
         'You supply NO findings: the host derives every card from the write_result data your workers already reported, dedupes identical claims across workers, and shows you every row in ONE confirm modal where each can be approved or declined individually. Use this INSTEAD of calling add_card once per finding — that would raise one confirmation prompt per card. ' +
         'Returns what was published, declined, merged or capped; relay that summary to the user rather than reporting a bare success.',
-      inputSchema: {
-        boardId: z.string().min(1),
-        lane: z.string().min(1).max(MAX_COLUMN_ID).optional()
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1),
+              lane: z.string().min(1).max(MAX_COLUMN_ID).optional()
+            })
     },
     async (args) => {
       const r = await publish.call(

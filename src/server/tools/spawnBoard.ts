@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator, PlanningElementSpec } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import {
@@ -34,7 +34,7 @@ export function registerSpawnBoard(
   orchestrator: Orchestrator,
   opts: { planningWrite?: boolean; ctx?: SessionCtx } = {}
 ): void {
-  const inputSchema = {
+  const inputSchema = z.object({
     type: z.enum(SPAWNABLE_BOARD_TYPES),
     // rc.6: prompt is the TERMINAL's spawn-time launch command (first PTY line). The host
     // re-sanitizes + re-clamps authoritatively; the wire `.max` rejects an oversize prompt
@@ -56,7 +56,7 @@ export function registerSpawnBoard(
       .optional(),
     // Only offer `seed` when the host has enabled the planning-write path (S2).
     ...(opts.planningWrite ? { seed: planningElementsArraySchema.optional() } : {})
-  }
+  })
   server.registerTool(
     TOOL_SPAWN_BOARD,
     {

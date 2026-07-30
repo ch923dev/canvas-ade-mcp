@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { McpServer } from "@modelcontextprotocol/server";
 import pkg from '../../package.json' with { type: 'json' }
 import type { BoardId, Scope, Tier } from '../types'
 import type { Orchestrator } from '../orchestrator/Orchestrator'

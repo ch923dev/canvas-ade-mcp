@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { BoardId } from '../../types'
 import type { SessionCtx } from '../factory'
@@ -51,11 +51,11 @@ export function registerRelayPrompt(
         'Relay a prompt from one terminal board to another along an orchestration ' +
         'connector (sourceId → targetId): the cable must already exist and both boards ' +
         'must be terminals. Requires human confirmation. sourceId, targetId, prompt required.',
-      inputSchema: {
-        sourceId: z.string().min(1),
-        targetId: z.string().min(1),
-        prompt: dispatchPromptSchema
-      }
+      inputSchema: z.object({
+              sourceId: z.string().min(1),
+              targetId: z.string().min(1),
+              prompt: dispatchPromptSchema
+            })
     },
     async (args) => {
       if (ctx.tier === 'connected' || ctx.tier === 'lead') {

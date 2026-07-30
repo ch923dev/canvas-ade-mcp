@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator, PlanningElementSpec } from '../../orchestrator/Orchestrator'
 import {
   MAX_PLANNING_DIAGRAM,
@@ -144,10 +144,10 @@ export function registerAddPlanningElements(server: McpServer, orchestrator: Orc
         'the board auto-arrange. Every write is shown to the human for confirmation before it ' +
         'lands; declined writes change nothing. Content renders as passive context and never runs ' +
         'anything. Subject to per-call element/size caps.',
-      inputSchema: {
-        boardId: z.string().min(1),
-        elements: planningElementsArraySchema
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1),
+              elements: planningElementsArraySchema
+            })
     },
     async (args) => {
       // The discriminated-union parse above narrows each element; widen back to the shared

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createAttentionNotifier } from '../../src/server/attentionNotifier'
 import { EmittingOrchestrator } from '../helpers/emittingOrchestrator'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { BoardStatusChange, Orchestrator } from '../../src/orchestrator/Orchestrator'
 
 /** Minimal fake exposing only what the notifier touches: `server.server.sendResourceUpdated`. */

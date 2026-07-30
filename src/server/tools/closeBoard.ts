@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_CLOSE_BOARD } from '../../constants'
 
@@ -16,7 +16,7 @@ export function registerCloseBoard(server: McpServer, orchestrator: Orchestrator
       description:
         'Close a board by id (graceful PTY drain, then removed from the canvas). ' +
         'Idempotent — closing an already-gone board succeeds.',
-      inputSchema: { id: z.string().min(1) }
+      inputSchema: z.object({ id: z.string().min(1) })
     },
     async (args) => {
       await orchestrator.closeBoard(args.id)

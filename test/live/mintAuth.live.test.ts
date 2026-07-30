@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { startTestServer, type TestServer } from '../helpers/httpServer'
 import { mintBoardToken } from '../../src/auth/mint'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../../src/constants'

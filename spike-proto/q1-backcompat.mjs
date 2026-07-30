@@ -3,11 +3,14 @@
 // Server side: SDK v2 (@modelcontextprotocol/server 2.0.0) McpServer +
 //   NodeStreamableHTTPServerTransport (@modelcontextprotocol/node 2.0.0), stateful
 //   (sessionIdGenerator set), mounted in Express exactly like src/server/mcpHttp.ts.
-// Client side: SDK v1 (@modelcontextprotocol/sdk 1.29.0) Client +
+// Client side: SDK v1 (@modelcontextprotocol/sdk 1.29.0, devDependency) Client +
 //   StreamableHTTPClientTransport — the 2025-06-18 stateful line Claude Code speaks now.
+//   NOTE: the v1-to-v2 codemod rewrote this import to @modelcontextprotocol/client once;
+//   it was restored deliberately — a v2 client here would defeat the probe's purpose.
 //
 // PASS = initialize handshake completes, Mcp-Session-Id round-trips, tools/list +
 // tools/call work, GET-SSE opens, DELETE tears the session down (404 after).
+/* global console, fetch, process, URL */
 import express from 'express'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
@@ -15,7 +18,6 @@ import { McpServer } from '@modelcontextprotocol/server'
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-
 const transports = new Map()
 
 const app = express()
@@ -26,7 +28,9 @@ app.post('/mcp', async (req, res) => {
   if (sid !== undefined) {
     const t = transports.get(sid)
     if (!t) {
-      res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null })
+      res
+        .status(404)
+        .json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null })
       return
     }
     await t.handleRequest(req, res, req.body)
@@ -34,11 +38,9 @@ app.post('/mcp', async (req, res) => {
   }
   // new session on initialize — mirrors SessionManager.handlePost
   const server = new McpServer({ name: 'q1-probe', version: '0.0.0' })
-  server.registerTool(
-    'ping',
-    { description: 'Health check. Returns "pong".' },
-    async () => ({ content: [{ type: 'text', text: 'pong' }] })
-  )
+  server.registerTool('ping', { description: 'Health check. Returns "pong".' }, async () => ({
+    content: [{ type: 'text', text: 'pong' }]
+  }))
   server.registerTool(
     'echo',
     { description: 'Echo with zod4 input schema.', inputSchema: z.object({ msg: z.string() }) },
@@ -61,7 +63,9 @@ async function sessionRoute(req, res) {
   const sid = req.header('mcp-session-id')
   const t = sid && transports.get(sid)
   if (!t) {
-    res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null })
+    res
+      .status(404)
+      .json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null })
     return
   }
   await t.handleRequest(req, res)
@@ -78,22 +82,38 @@ const httpServer = app.listen(0, '127.0.0.1', async () => {
     const client = new Client({ name: 'v1-client', version: '1.29.0' })
     const clientTransport = new StreamableHTTPClientTransport(url)
     await client.connect(clientTransport)
-    check('initialize handshake (v1 client -> v2 server)', true,
-      `negotiated protocolVersion=${clientTransport.protocolVersion ?? '(n/a)'}`)
-    check('Mcp-Session-Id issued', clientTransport.sessionId !== undefined,
-      `sessionId=${clientTransport.sessionId}`)
+    check(
+      'initialize handshake (v1 client -> v2 server)',
+      true,
+      `negotiated protocolVersion=${clientTransport.protocolVersion ?? '(n/a)'}`
+    )
+    check(
+      'Mcp-Session-Id issued',
+      clientTransport.sessionId !== undefined,
+      `sessionId=${clientTransport.sessionId}`
+    )
 
     const tools = await client.listTools()
-    check('tools/list on reused session', tools.tools.length === 2,
-      tools.tools.map((t) => t.name).join(','))
+    check(
+      'tools/list on reused session',
+      tools.tools.length === 2,
+      tools.tools.map((t) => t.name).join(',')
+    )
 
     const ping = await client.callTool({ name: 'ping', arguments: {} })
     check('tools/call ping', ping.content?.[0]?.text === 'pong', JSON.stringify(ping.content))
 
     const echo = await client.callTool({ name: 'echo', arguments: { msg: 'hi' } })
-    check('tools/call echo (zod4 schema)', echo.content?.[0]?.text === 'echo:hi', JSON.stringify(echo.content))
+    check(
+      'tools/call echo (zod4 schema)',
+      echo.content?.[0]?.text === 'echo:hi',
+      JSON.stringify(echo.content)
+    )
 
-    // standalone GET-SSE — today's attention-notifier channel
+    // standalone GET-SSE — today's attention-notifier channel. The v1 client ALREADY
+    // auto-opened the standalone stream on connect, so a second GET must 409 with the
+    // one-stream-per-session Conflict — the exact v1 rule. (A first GET on a fresh raw
+    // 2025-06-18 session returns 200 text/event-stream — verified separately.)
     const sseRes = await fetch(url, {
       headers: {
         accept: 'text/event-stream',
@@ -101,16 +121,23 @@ const httpServer = app.listen(0, '127.0.0.1', async () => {
         'mcp-protocol-version': clientTransport.protocolVersion ?? '2025-06-18'
       }
     })
-    check('standalone GET-SSE opens', sseRes.status === 200 &&
-      (sseRes.headers.get('content-type') ?? '').includes('text/event-stream'),
-      `status=${sseRes.status} ct=${sseRes.headers.get('content-type')}`)
-    sseRes.body?.cancel?.()
+    const sseBody = sseRes.status === 200 ? '' : await sseRes.text()
+    check(
+      'GET-SSE one-stream discipline (client holds stream; 2nd GET 409s)',
+      sseRes.status === 409 && sseBody.includes('Only one SSE stream'),
+      `status=${sseRes.status}`
+    )
+    if (sseRes.status === 200) sseRes.body?.cancel?.()
 
     const sid = clientTransport.sessionId
     await clientTransport.terminateSession() // DELETE /mcp
     const after = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'mcp-session-id': sid },
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': sid
+      },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/list', id: 99 })
     })
     check('DELETE tears down (reuse -> 404)', after.status === 404, `status=${after.status}`)

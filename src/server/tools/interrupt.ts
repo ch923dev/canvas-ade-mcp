@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_INTERRUPT } from '../../constants'
 
@@ -22,9 +22,9 @@ export function registerInterrupt(server: McpServer, orchestrator: Orchestrator)
       description:
         'Interrupt a target terminal board by id: send Ctrl-C to stop its running ' +
         'command. Terminal targets only; requires human confirmation. boardId is required.',
-      inputSchema: {
-        boardId: z.string().min(1)
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1)
+            })
     },
     async (args) => {
       await orchestrator.interrupt(args.boardId)

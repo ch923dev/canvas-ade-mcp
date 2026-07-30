@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TIDY_MODES, TOOL_TIDY_CANVAS } from '../../constants'
 
@@ -28,9 +28,9 @@ export function registerTidyCanvas(server: McpServer, orchestrator: Orchestrator
         '(link-aware, the default), "by-type", or "grid". Returns { moved } — the count of boards ' +
         'whose position changed (0 ⇒ the canvas was already tidy). Read canvas://layout first to ' +
         'decide whether a tidy is warranted.',
-      inputSchema: {
-        mode: z.enum(TIDY_MODES).optional()
-      }
+      inputSchema: z.object({
+              mode: z.enum(TIDY_MODES).optional()
+            })
     },
     async (args) => {
       const result = await orchestrator.tidyCanvas({ mode: args.mode })

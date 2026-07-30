@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_HANDOFF_PROMPT } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
@@ -35,11 +35,11 @@ export function registerHandoffPrompt(server: McpServer, orchestrator: Orchestra
         'Terminal targets only; requires human confirmation. boardId + prompt are required; ' +
         'optional timeoutMs (omit for the default backstop; <=0 to wait indefinitely). On ' +
         'timeout the dispatch keeps running host-side — read canvas://board/{id}/result later.',
-      inputSchema: {
-        boardId: z.string().min(1),
-        prompt: dispatchPromptSchema,
-        timeoutMs: z.number().optional()
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1),
+              prompt: dispatchPromptSchema,
+              timeoutMs: z.number().optional()
+            })
     },
     async (args) => {
       const timeoutMs = resolveBarrierTimeout(args.timeoutMs)

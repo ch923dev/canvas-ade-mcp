@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import {
@@ -32,17 +32,17 @@ export function registerWriteResult(
       description:
         "Record THIS board's structured last result (status / summary / references). " +
         'All fields optional. Writes only the calling board (no target id is accepted).',
-      inputSchema: {
-        status: z.string().optional(),
-        // 🔒 C3 / BUG-009: cap at the protocol layer (mirrors the host's WRITE_RESULT_MAX_* clamps).
-        // An oversized payload is rejected here by Zod before it reaches the orchestrator; the MAIN
-        // clamps remain as independent defense-in-depth.
-        summary: z.string().max(WRITE_RESULT_MAX_SUMMARY).optional(),
-        refs: z
-          .array(z.string().max(WRITE_RESULT_MAX_REF_LEN))
-          .max(WRITE_RESULT_MAX_REFS)
-          .optional()
-      }
+      inputSchema: z.object({
+              status: z.string().optional(),
+              // 🔒 C3 / BUG-009: cap at the protocol layer (mirrors the host's WRITE_RESULT_MAX_* clamps).
+              // An oversized payload is rejected here by Zod before it reaches the orchestrator; the MAIN
+              // clamps remain as independent defense-in-depth.
+              summary: z.string().max(WRITE_RESULT_MAX_SUMMARY).optional(),
+              refs: z
+                .array(z.string().max(WRITE_RESULT_MAX_REF_LEN))
+                .max(WRITE_RESULT_MAX_REFS)
+                .optional()
+            })
     },
     async (args) => {
       // 🔒 ctx.boardId is derived from the token (no client input). If the token

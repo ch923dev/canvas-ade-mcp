@@ -1,4 +1,4 @@
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { registerBoardStatesResource } from './boardStates'
 import { registerAttentionResource } from './attention'

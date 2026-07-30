@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer } from "@modelcontextprotocol/server";
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { MAX_FOCUS_TARGET_ID, TOOL_FOCUS_VIEWPORT } from '../../constants'
 
@@ -29,10 +29,10 @@ export function registerFocusViewport(server: McpServer, orchestrator: Orchestra
         'canvas://app-model. Orchestrator-tier only. Viewport-only and content-less: nothing is ' +
         'created, moved, resized, or deleted, and the user can scroll back at any time. Returns ' +
         '{ focused: "board" | "group" | "all", id? }. Errors on an unknown id.',
-      inputSchema: {
-        boardId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional(),
-        groupId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional()
-      }
+      inputSchema: z.object({
+              boardId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional(),
+              groupId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional()
+            })
     },
     async (args) => {
       // Exactly-one-or-none: both targets in one call is ambiguous — reject at the wire so the
