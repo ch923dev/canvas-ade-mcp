@@ -42,7 +42,8 @@ classification ladder (`classifyInboundRequest`, `InboundModernRoute`/`InboundLe
 `legacyStatelessFallback`) that routes modern and legacy clients side by side. Adopting v2 does
 NOT force the stateless model; it makes it available behind the same endpoint when we want it.
 
-**Empirical proof** (`spike-proto/q1-backcompat.mjs`, committed; server = v2 `McpServer` +
+**Empirical proof** (`spike-proto/q1-backcompat.mjs` on `spike/sdk2-transport` — superseded on
+the migration branch by the durable `test/live/v1ClientCompat.live.test.ts` lane; server = v2 `McpServer` +
 `NodeStreamableHTTPServerTransport` in Express exactly like `mcpHttp.ts`; client = the REAL
 `@modelcontextprotocol/sdk@1.29.0` `Client` + `StreamableHTTPClientTransport`, kept as a
 devDependency for exactly this purpose):

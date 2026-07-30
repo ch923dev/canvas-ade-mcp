@@ -7,12 +7,15 @@ Phase 0 actually shipped — all five gates green.
 
 ## Stack (as installed)
 
-- **Runtime:** `@modelcontextprotocol/sdk@1.29.0`, `express@5.2.1`, `zod@4.4.3`.
+- **Runtime:** MCP SDK v2 split packages `@modelcontextprotocol/{server,node,express,core}@2.0.0`
+  (ADR 0004; classic stateful transport, stateless core NOT adopted), `express@5.2.1`, `zod@4.4.3`.
+  `@modelcontextprotocol/sdk@1.29` remains a devDependency solely for the v1-client back-compat
+  lane (`test/live/v1ClientCompat.live.test.ts`).
 - **Toolchain:** `typescript@6.0.3`, `tsup@8` (build), `vitest@4` (test), `eslint@10` flat +
   `typescript-eslint@8` + `prettier@3`. pnpm 9.15.
-- **Module resolution:** `Bundler` + extensionless relative imports (see ADR 0001). SDK subpath
-  imports keep the `.js` suffix the SDK's own `exports` map expects (e.g.
-  `@modelcontextprotocol/sdk/server/mcp.js`).
+- **Module resolution:** `Bundler` + extensionless relative imports (see ADR 0001). v2 packages
+  export from the package root (`import { McpServer } from '@modelcontextprotocol/server'`) —
+  the v1-era `.js`-suffixed subpath imports are gone.
 
 ## Transport pattern (stateful streamable-HTTP)
 
