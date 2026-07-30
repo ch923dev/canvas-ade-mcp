@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http'
-import express, { type Express } from 'express'
+import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
 import { MCP_PATH } from '../constants'
@@ -10,7 +10,7 @@ import type { TokenStore } from '../auth/tokens'
 import { originGuard } from '../security/origin'
 import { hostGuard } from '../security/host'
 import { ServerFactory, type SessionCtx } from './factory'
-import { SessionManager } from './transport'
+import { rpcError, SessionManager } from './transport'
 
 export interface McpServerDeps {
   orchestrator: Orchestrator
@@ -40,6 +40,14 @@ export interface RunningMcpServer {
   httpServer: Server
   port: number
   setAllowedOrigins(origins: readonly string[]): void
+  /**
+   * Close every live MCP session created by a token bound to `boardId` (audit Phase A /
+   * roadmap Phase 9). The HOST wires this into its board-teardown path (`close_board` /
+   * discard-worktree) so a killed board's agent loses its LIVE session too —
+   * `TokenStore.revoke` alone only 401s future requests. Resolves to the number of
+   * sessions closed.
+   */
+  closeSessionsForBoard(boardId: string): Promise<number>
   close(): Promise<void>
 }
 
@@ -102,6 +110,30 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
     sessions.handleSession(req, res, ctxFromAuth(req.auth)).catch(next)
   })
 
+  // Final error handler (audit Phase A). Without it an error thrown past the routes —
+  // a malformed JSON body from an AUTHENTICATED client, an oversized body, a transport
+  // throw — falls to Express's default finalhandler, which renders an HTML page
+  // embedding `err.stack` whenever NODE_ENV isn't 'production' (nothing in an
+  // embedding Electron host guarantees it is). Always answer with the JSON-RPC error
+  // shape the routes already use, and NEVER echo error internals to the client (the
+  // host owns diagnostics; this response is agent-facing).
+  app.use(MCP_PATH, (err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(err)
+      return
+    }
+    const e = err as { type?: string } | null
+    if (e?.type === 'entity.parse.failed') {
+      res.status(400).json(rpcError(-32700, 'Parse error: invalid JSON body'))
+      return
+    }
+    if (e?.type === 'entity.too.large') {
+      res.status(413).json(rpcError(-32600, 'Request body too large'))
+      return
+    }
+    res.status(500).json(rpcError(-32603, 'Internal server error'))
+  })
+
   const httpServer = createServer(app)
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', () => resolve()))
   const address = httpServer.address()
@@ -114,6 +146,9 @@ export async function createMcpHttpServer(deps: McpServerDeps): Promise<RunningM
     port,
     setAllowedOrigins(origins) {
       allowedOrigins = origins
+    },
+    closeSessionsForBoard(boardId) {
+      return sessions.closeByBoardId(boardId)
     },
     async close() {
       await sessions.closeAll()

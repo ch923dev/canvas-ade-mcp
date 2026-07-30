@@ -140,13 +140,39 @@ describe('canvas://board/{id}/output resource', () => {
     await client.close()
   })
 
-  it('is readable by the worker tier (observation is safe for both tiers)', async () => {
-    const client = await connectInMemory('worker', new OutputOrchestrator({ 'b-1': 'hello' }))
+  it('is readable by the worker tier for its OWN board (read-scoped, audit Phase A)', async () => {
+    const client = await connectInMemory(
+      'worker',
+      new OutputOrchestrator({ 'b-1': 'hello' }),
+      'b-1'
+    )
     const res = await client.readResource({ uri: 'canvas://board/b-1/output' })
     const out = JSON.parse(readText(res.contents)) as BoardOutput
     expect(out.text).toBe('hello')
     expect(out.total).toBe(5)
     await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's output (the exfil path)", async () => {
+    const orch = new OutputOrchestrator({ 'b-1': 'hello', 'b-2': 'secret' })
+    const client = await connectInMemory('worker', orch, 'b-1')
+    await expect(client.readResource({ uri: 'canvas://board/b-2/output' })).rejects.toThrow(
+      /forbidden/
+    )
+    // The paged template pays the same gate.
+    await expect(
+      client.readResource({ uri: 'canvas://board/b-2/output?cursor=0' })
+    ).rejects.toThrow(/forbidden/)
+    await client.close()
+  })
+
+  it('🔒 orchestrator / lead / connected reads of any board stay unrestricted', async () => {
+    for (const tier of ['orchestrator', 'lead', 'connected'] as const) {
+      const client = await connectInMemory(tier, new OutputOrchestrator({ 'b-2': 'ok' }), 'b-1')
+      const res = await client.readResource({ uri: 'canvas://board/b-2/output' })
+      expect((JSON.parse(readText(res.contents)) as BoardOutput).text).toBe('ok')
+      await client.close()
+    }
   })
 
   it('returns an empty page for an absent board (no error)', async () => {

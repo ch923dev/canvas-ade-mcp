@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
-import { DEFAULT_BARRIER_TIMEOUT_MS, TOOL_WAIT_FOR_ALL, TOOL_WAIT_FOR_IDLE } from '../../constants'
+import {
+  DEFAULT_BARRIER_TIMEOUT_MS,
+  MAX_ACTIVE_BARRIERS,
+  TOOL_WAIT_FOR_ALL,
+  TOOL_WAIT_FOR_IDLE
+} from '../../constants'
 import { waitForBoards, type BarrierBoardResult } from '../barrierWaiter'
 
 /**
@@ -30,7 +35,15 @@ export function resolveBarrierTimeout(arg?: number): number {
 export function registerBarrierTools(server: McpServer, orchestrator: Orchestrator): () => void {
   const active = new Set<() => void>()
 
-  const run = async (targets: string[], timeoutMs: number): Promise<BarrierBoardResult[]> => {
+  // 🔒 Cap concurrent waits (audit Phase A): each wait holds one host status listener,
+  // and without a bound that allocation is client-controlled (the risk class the
+  // resources/subscribe allowlist already closes). `null` = over cap → the tools
+  // surface a structured isError, mirroring every other refusal in this package.
+  const run = async (
+    targets: string[],
+    timeoutMs: number
+  ): Promise<BarrierBoardResult[] | null> => {
+    if (active.size >= MAX_ACTIVE_BARRIERS) return null
     const handle = waitForBoards({ orchestrator, targets, timeoutMs })
     active.add(handle.cancel)
     try {
@@ -39,6 +52,18 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
       active.delete(handle.cancel)
     }
   }
+
+  const overCap = (): { isError: true; content: Array<{ type: 'text'; text: string }> } => ({
+    isError: true,
+    content: [
+      {
+        type: 'text',
+        text:
+          `too many concurrent barrier waits (max ${MAX_ACTIVE_BARRIERS} per session) — ` +
+          'wait for one to settle first (wait_for_all joins a LIST in a single wait)'
+      }
+    ]
+  })
 
   server.registerTool(
     TOOL_WAIT_FOR_IDLE,
@@ -55,6 +80,7 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
     },
     async (args) => {
       const results = await run([args.boardId], resolveBarrierTimeout(args.timeoutMs))
+      if (results === null) return overCap()
       const r = results[0] ?? { id: args.boardId, status: 'timed-out' }
       return { content: [{ type: 'text', text: JSON.stringify(r) }] }
     }
@@ -75,6 +101,7 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
     },
     async (args) => {
       const boards = await run(args.boardIds, resolveBarrierTimeout(args.timeoutMs))
+      if (boards === null) return overCap()
       const allIdle = boards.every((b) => b.status === 'idle')
       return { content: [{ type: 'text', text: JSON.stringify({ boards, allIdle }) }] }
     }

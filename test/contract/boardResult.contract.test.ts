@@ -67,13 +67,26 @@ describe('canvas://board/{id}/result resource', () => {
     await client.close()
   })
 
-  it('is readable by the worker tier (observation is safe for both tiers)', async () => {
+  it('is readable by the worker tier for its OWN board (read-scoped, audit Phase A)', async () => {
     const client = await connectInMemory(
       'worker',
-      new ResultOrchestrator({ 'b-1': { present: true, status: 'failure' } })
+      new ResultOrchestrator({ 'b-1': { present: true, status: 'failure' } }),
+      'b-1'
     )
     const res = await client.readResource({ uri: 'canvas://board/b-1/result' })
     expect(JSON.parse(readText(res.contents))).toEqual({ present: true, status: 'failure' })
+    await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's result", async () => {
+    const client = await connectInMemory(
+      'worker',
+      new ResultOrchestrator({ 'b-2': { present: true, status: 'success' } }),
+      'b-1'
+    )
+    await expect(client.readResource({ uri: 'canvas://board/b-2/result' })).rejects.toThrow(
+      /forbidden/
+    )
     await client.close()
   })
 })

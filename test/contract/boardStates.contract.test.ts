@@ -65,13 +65,20 @@ describe('groupBoardsByStatus', () => {
 
 describe('canvas://board-states resource', () => {
   it('returns the live board list grouped by status bucket', async () => {
-    const client = await connectInMemory('worker', new MixedOrchestrator())
+    const client = await connectInMemory('orchestrator', new MixedOrchestrator())
     const res = await client.readResource({ uri: 'canvas://board-states' })
     expect(JSON.parse(readText(res.contents))).toEqual({
       running: ['t1', 't2'],
       failed: ['b1'],
       static: ['p1']
     })
+    await client.close()
+  })
+
+  it("🔒 a worker's roll-up covers only its own board (read-scope, audit Phase A)", async () => {
+    const client = await connectInMemory('worker', new MixedOrchestrator(), 't1')
+    const res = await client.readResource({ uri: 'canvas://board-states' })
+    expect(JSON.parse(readText(res.contents))).toEqual({ running: ['t1'] })
     await client.close()
   })
 })

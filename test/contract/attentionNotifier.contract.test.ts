@@ -119,6 +119,29 @@ describe('createAttentionNotifier', () => {
     expect(() => listener?.({ id: 't1', status: 'blocked' })).not.toThrow()
   })
 
+  it('level-trigger seed: a board ALREADY in attention before the session emits its later LEAVE', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.boards = [{ id: 'pre', type: 'terminal', title: 'Pre', status: 'blocked' }] // pre-session
+    const { server, updates } = fakeServer()
+    createAttentionNotifier({ server, orchestrator: orch, isSubscribed: () => true })
+    await new Promise((r) => setTimeout(r, 0)) // let the async seed land
+    orch.emit({ id: 'pre', status: 'idle' }) // leaves → MUST emit (was swallowed pre-Phase-A)
+    expect(updates).toEqual(['canvas://attention'])
+  })
+
+  it('level-trigger seed skips monitorActivity:false boards (selectAttention parity)', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.boards = [
+      { id: 'shell', type: 'terminal', title: 'S', status: 'blocked', monitorActivity: false }
+    ]
+    const { server, updates } = fakeServer()
+    createAttentionNotifier({ server, orchestrator: orch, isSubscribed: () => true })
+    await new Promise((r) => setTimeout(r, 0))
+    // Not seeded → a later non-attention change compares equal and emits nothing.
+    orch.emit({ id: 'shell', status: 'idle' })
+    expect(updates).toEqual([])
+  })
+
   it('tracks membership per board id (independent enter/leave)', () => {
     const orch = new EmittingOrchestrator()
     const { server, updates } = fakeServer()

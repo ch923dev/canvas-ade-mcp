@@ -31,10 +31,16 @@ describe('canvas://board/{id}/cards resource (P3b, per-board kanban read)', () =
     await client.close()
   })
 
-  it('is readable by the worker tier (observation is safe for both tiers)', async () => {
-    const client = await connectInMemory('worker')
+  it('is readable by the worker tier for its OWN board (read-scoped, audit Phase A)', async () => {
+    const client = await connectInMemory('worker', undefined, 'k1')
     const res = await client.readResource({ uri: URI })
     expect(JSON.parse(readText(res.contents)).isKanban).toBe(true)
+    await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's cards", async () => {
+    const client = await connectInMemory('worker', undefined, 'some-other-board')
+    await expect(client.readResource({ uri: URI })).rejects.toThrow(/forbidden/)
     await client.close()
   })
 

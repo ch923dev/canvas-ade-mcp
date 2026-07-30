@@ -117,10 +117,18 @@ describe('canvas://board/{id}/output over real HTTP', () => {
     await client.close()
   })
 
-  it('is readable by the worker tier (observation is safe)', async () => {
+  it('is readable by the worker tier for its OWN board (read-scoped, audit Phase A)', async () => {
     const client = await connect('tok-worker')
-    const p1 = parse(await client.readResource({ uri: 'canvas://board/b1/output' }))
+    const p1 = parse(await client.readResource({ uri: 'canvas://board/bW/output' }))
     expect(p1.returned).toBe(MAX_OUTPUT_PAGE)
+    await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's output over HTTP", async () => {
+    const client = await connect('tok-worker')
+    await expect(client.readResource({ uri: 'canvas://board/b1/output' })).rejects.toThrow(
+      /forbidden/
+    )
     await client.close()
   })
 })

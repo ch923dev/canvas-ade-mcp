@@ -85,4 +85,30 @@ describe('canvas://memory + canvas://board/{id}/summary resources', () => {
     expect(JSON.parse(readText(res.contents)).present).toBe(true)
     await client.close()
   })
+
+  it('🔒 canvas://memory stays UN-scoped for workers (host-curated shared context)', async () => {
+    // Deliberate carve-out from the Phase A read-scope: the index is the Brain/Memory
+    // engine's curated digest, not another agent's raw output.
+    const doc: MemoryDoc = { present: true, text: 'shared' }
+    const client = await connectInMemory('worker', new MemoryOrchestrator(doc, {}), 'b-mine')
+    const res = await client.readResource({ uri: 'canvas://memory' })
+    expect(JSON.parse(readText(res.contents))).toEqual(doc)
+    await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's summary (read-scope, audit Phase A)", async () => {
+    const sum: MemoryDoc = { present: true, text: 'sibling secrets' }
+    const client = await connectInMemory(
+      'worker',
+      new MemoryOrchestrator({ present: false, text: '' }, { 'b-2': sum }),
+      'b-1'
+    )
+    await expect(client.readResource({ uri: 'canvas://board/b-2/summary' })).rejects.toThrow(
+      /forbidden/
+    )
+    // Its own summary stays readable.
+    const own = await client.readResource({ uri: 'canvas://board/b-1/summary' })
+    expect(JSON.parse(readText(own.contents))).toEqual({ present: false, text: '' })
+    await client.close()
+  })
 })

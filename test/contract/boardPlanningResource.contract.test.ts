@@ -35,10 +35,16 @@ describe('canvas://board/{id}/planning resource (S6, per-board planning read)', 
     await client.close()
   })
 
-  it('is readable by the worker tier (observation is safe for both tiers)', async () => {
-    const client = await connectInMemory('worker')
+  it('is readable by the worker tier for its OWN board (read-scoped, audit Phase A)', async () => {
+    const client = await connectInMemory('worker', undefined, 'p1')
     const res = await client.readResource({ uri: URI })
     expect(JSON.parse(readText(res.contents)).isPlanning).toBe(true)
+    await client.close()
+  })
+
+  it("🔒 refuses a worker's read of a SIBLING board's planning", async () => {
+    const client = await connectInMemory('worker', undefined, 'some-other-board')
+    await expect(client.readResource({ uri: URI })).rejects.toThrow(/forbidden/)
     await client.close()
   })
 

@@ -211,7 +211,10 @@ export class ServerFactory {
     // record its OWN board's result, never forge another's.
     registerWriteResult(server, this.orchestrator, ctx)
 
-    registerBoardResources(server, this.orchestrator)
+    // 🔒 Read-scoped per session (audit Phase A): a worker session reads ONLY its own
+    // board — list resources filtered, per-board reads refused for a sibling id (the
+    // same cross-worker info-leak rationale that keeps git_diff orchestrator-only).
+    registerBoardResources(server, this.orchestrator, ctx)
     // Prompts substrate (W1-F): tier-gated `prompts/list`/`prompts/get`. Pure-render —
     // gated on ctx.tier (worker → no prompts). See src/prompts/index.ts.
     registerPrompts(server, ctx)

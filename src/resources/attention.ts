@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { BoardSummary, Orchestrator } from '../orchestrator/Orchestrator'
+import { scopeBoardList, type ResourceScope } from './scope'
 
 /** The canonical URI of the read-only attention resource (M5 notifier pushes updates here). */
 export const ATTENTION_URI = 'canvas://attention'
@@ -30,11 +31,16 @@ export function selectAttention(boards: BoardSummary[]): BoardSummary[] {
 }
 
 /**
- * Registers the read-only `canvas://attention` resource (both tiers — observation is
- * safe): the boards needing a human, with full detail so the agent knows which board
- * and why. The on-canvas "needs-you" queue (M5 / SB-1) is the human-visible twin.
+ * Registers the read-only `canvas://attention` resource (every tier, 🔒 read-scoped —
+ * a worker sees only its own board's attention state): the boards needing a human,
+ * with full detail so the agent knows which board and why. The on-canvas "needs-you"
+ * queue (M5 / SB-1) is the human-visible twin.
  */
-export function registerAttentionResource(server: McpServer, orchestrator: Orchestrator): void {
+export function registerAttentionResource(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  scope: ResourceScope
+): void {
   server.registerResource(
     'attention',
     ATTENTION_URI,
@@ -44,7 +50,12 @@ export function registerAttentionResource(server: McpServer, orchestrator: Orche
     },
     async (uri) => ({
       contents: [
-        { uri: uri.href, text: JSON.stringify(selectAttention(await orchestrator.listBoards())) }
+        {
+          uri: uri.href,
+          text: JSON.stringify(
+            selectAttention(scopeBoardList(scope, await orchestrator.listBoards()))
+          )
+        }
       ]
     })
   )
