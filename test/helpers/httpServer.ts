@@ -15,10 +15,13 @@ export interface TestServer {
  * custom `orchestrator` to exercise resources/tools against known board state.
  */
 export async function startTestServer(
-  orchestrator: Orchestrator = new MockOrchestrator()
+  orchestrator: Orchestrator = new MockOrchestrator(),
+  /** Opt into the host's durable content-write gate (planning writes, kanban cards,
+   *  `publish_findings`). Defaults OFF so every existing live test is unchanged. */
+  planningWrite = false
 ): Promise<TestServer> {
   const tokens = new TokenStore()
-  const server = await createMcpHttpServer({ orchestrator, tokens })
+  const server = await createMcpHttpServer({ orchestrator, tokens, planningWrite })
   return { server, tokens, url: `http://127.0.0.1:${server.port}/mcp` }
 }
 
