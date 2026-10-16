@@ -87,14 +87,17 @@ describe('lead tier — structural tool surface (registration split)', () => {
       TOOL_ASSIGN_PROMPT,
       TOOL_WAIT_FOR_ALL,
       TOOL_WAIT_FOR_IDLE,
-      TOOL_WRITE_RESULT
+      TOOL_WRITE_RESULT,
+      // C6 / D1 (0.27.0): the spatial tools, host-confirmed for this tier.
+      TOOL_TIDY_CANVAS,
+      TOOL_FOCUS_VIEWPORT
     ]) {
       expect(names, `expected ${included} registered at lead`).toContain(included)
     }
     await client.close()
   })
 
-  it('OMITS the app-resident orchestrator surfaces (handoff/interrupt/close/git_diff/configure/tidy/focus/orchestrator_ping)', async () => {
+  it('OMITS the app-resident orchestrator surfaces (handoff/interrupt/close/git_diff/configure/orchestrator_ping)', async () => {
     const client = await connectInMemory('lead', undefined, 'lead-board')
     const names = (await client.listTools()).tools.map((t) => t.name)
     for (const omitted of [
@@ -103,9 +106,7 @@ describe('lead tier — structural tool surface (registration split)', () => {
       TOOL_INTERRUPT,
       TOOL_CLOSE_BOARD,
       TOOL_GIT_DIFF,
-      TOOL_CONFIGURE_BOARD,
-      TOOL_TIDY_CANVAS,
-      TOOL_FOCUS_VIEWPORT
+      TOOL_CONFIGURE_BOARD
     ]) {
       expect(names, `expected ${omitted} absent at lead`).not.toContain(omitted)
     }

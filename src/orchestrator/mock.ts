@@ -6,6 +6,8 @@ import type {
   BoardResultInput,
   BoardStatusChange,
   BoardSummary,
+  EditGroupsInput,
+  GroupBoardsInput,
   KanbanCardPatch,
   KanbanCardSpec,
   MemoryDoc,
@@ -16,6 +18,7 @@ import type {
   RelayResult,
   SpawnGroupInput,
   SpawnGroupResult,
+  TidyCanvasInput,
   VisualizePlanSpec
 } from './Orchestrator'
 
@@ -36,7 +39,11 @@ export class MockOrchestrator implements Orchestrator {
     return { id: 'mock-board' }
   }
 
-  async focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown> {
+  async focusViewport(input: {
+    boardId?: BoardId
+    groupId?: string
+    sourceBoardId?: BoardId
+  }): Promise<unknown> {
     // Echo the host contract shape so the tool's JSON serialization is contract-testable.
     if (input.boardId) return { focused: 'board', id: input.boardId }
     if (input.groupId) return { focused: 'group', id: input.groupId }
@@ -145,10 +152,32 @@ export class MockOrchestrator implements Orchestrator {
     }
   }
 
-  async tidyCanvas(_input: { mode?: string }): Promise<unknown> {
-    // A minimal { moved } fixture — enough for the tool call contract to round-trip. The host's real
-    // tidyCanvas forwards a `tidyBoards` command to the renderer packer and returns the moved count.
-    return { moved: 0 }
+  async tidyCanvas(input: TidyCanvasInput): Promise<unknown> {
+    // A minimal C6 result fixture — enough for the tool call contract to round-trip. The host's real
+    // tidyCanvas confirms lead/connected callers, forwards a `tidyBoards` command to the renderer
+    // packer and returns the moved count + the post-tidy fit. `units` rides back for roles (explicit,
+    // or the implicit default an omitted mode resolves to host-side).
+    const roles = input.mode === undefined || input.mode === 'roles'
+    return { moved: 0, fitZoom: 1, readable: true, ...(roles ? { units: [] } : {}) }
+  }
+
+  /**
+   * C6 spatial-awareness optional methods. Implemented on the mock (rather than left off, which the
+   * OPTIONAL interface allows) so `group_boards` / `edit_groups` / `canvas://contexts` actually appear
+   * in the mock's lists — a mock without them would make every registration test vacuous (the
+   * `publishFindings` precedent).
+   */
+  async describeContexts(): Promise<unknown> {
+    return { version: 1, contexts: [], ungrouped: [] }
+  }
+
+  async groupBoards(input: GroupBoardsInput): Promise<unknown> {
+    // Every row "approved": one minted group id per row, positionally 1:1 with the input.
+    return input.groups.map((_row, i) => ({ status: 'created', groupId: `mock-group-${i + 1}` }))
+  }
+
+  async editGroups(input: EditGroupsInput): Promise<unknown> {
+    return input.ops.map(() => ({ status: 'applied' }))
   }
 
   async boardStatus(_boardId: BoardId): Promise<string> {

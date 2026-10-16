@@ -64,3 +64,45 @@ describe('package root exports every host-mirrored transport cap', () => {
     expect(pkg.MAX_KANBAN_CARDS).toBe(300)
   })
 })
+
+// C6 spatial-awareness wire (0.27.0). The host's parity test (SPEC §5, the
+// mcpPlanningCapsParity pattern) looks these up by name on the root — pin every one of them here.
+describe('package root exports the C6 spatial wire (0.27.0)', () => {
+  const root = pkg as unknown as Record<string, unknown>
+  const consts = constants as unknown as Record<string, unknown>
+
+  const caps = ['MAX_GROUP_BATCH', 'MAX_GROUP_MEMBERS', 'GROUP_NAME_MAX', 'MAX_CONTEXTS']
+  for (const name of caps) {
+    it(`${name} is exported from the root with its constants.ts value`, () => {
+      expect(typeof consts[name]).toBe('number')
+      expect(root[name]).toBe(consts[name])
+    })
+  }
+
+  it('the C6 cap values are the SPEC values', () => {
+    expect(pkg.MAX_GROUP_BATCH).toBe(10)
+    expect(pkg.MAX_GROUP_MEMBERS).toBe(50)
+    expect(pkg.GROUP_NAME_MAX).toBe(80)
+    expect(pkg.MAX_CONTEXTS).toBe(50)
+  })
+
+  it('🔒 GROUP_NAME_MAX === SPAWN_GROUP_MAX_NAME (one group name, two tools)', () => {
+    expect(pkg.GROUP_NAME_MAX).toBe(pkg.SPAWN_GROUP_MAX_NAME)
+  })
+
+  it('the vocabularies are exported verbatim', () => {
+    expect(pkg.TIDY_MODES).toBe(constants.TIDY_MODES)
+    expect([...pkg.TIDY_MODES]).toEqual(['fit', 'roles', 'smart', 'by-type', 'grid', 'tile'])
+    expect([...pkg.TILE_TEMPLATES]).toEqual(['cols-2', 'cols-3', 'cols-4', 'main-sidebar', 'grid'])
+    expect([...pkg.TIDY_OVERFLOW]).toEqual(['report', 'pages', 'shrink'])
+  })
+
+  it('the tool names + the contexts URI are exported', () => {
+    expect(pkg.TOOL_GROUP_BOARDS).toBe('group_boards')
+    expect(pkg.TOOL_EDIT_GROUPS).toBe('edit_groups')
+    expect(pkg.TOOL_TIDY_CANVAS).toBe('tidy_canvas')
+    expect(pkg.TOOL_FOCUS_VIEWPORT).toBe('focus_viewport')
+    expect(pkg.CONTEXTS_URI).toBe('canvas://contexts')
+    expect(pkg.MAX_FOCUS_TARGET_ID).toBe(200)
+  })
+})

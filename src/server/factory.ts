@@ -6,6 +6,7 @@ import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
 import { registerBoardResources } from '../resources/boards'
 import { registerAppModelResource } from '../resources/appModel'
 import { registerLayoutResource } from '../resources/layout'
+import { registerContextsResource } from '../resources/contexts'
 import { registerPrompts } from '../prompts/index'
 import { registerSpawnBoard } from './tools/spawnBoard'
 import { registerCloseBoard } from './tools/closeBoard'
@@ -23,6 +24,8 @@ import { registerGitDiff } from './tools/gitDiff'
 import { registerSpawnGroup } from './tools/spawnGroup'
 import { registerTidyCanvas } from './tools/tidyCanvas'
 import { registerFocusViewport } from './tools/focusViewport'
+import { registerGroupBoards } from './tools/groupBoards'
+import { registerEditGroups } from './tools/editGroups'
 import { registerRelayPrompt } from './tools/relayPrompt'
 import { registerRelayPrompts } from './tools/relayPrompts'
 import { registerBarrierTools } from './tools/barriers'
@@ -40,6 +43,33 @@ export interface SessionCtx {
 // Version is sourced from package.json so the handshake never drifts from the
 // published version (clients log/compat-check serverInfo.version).
 const SERVER_INFO = { name: 'canvas-ade-mcp', version: pkg.version }
+
+/**
+ * The C6 SPATIAL surface (spatial-awareness, 0.27.0) — ONE registration set shared by the
+ * orchestrator, lead and connected tiers (D1), so the three tiers cannot drift apart. A worker never
+ * calls this, so none of it ever appears in a worker's `tools/list` / `resources/list`.
+ *
+ * - `canvas://layout` + `canvas://contexts` — read-only.
+ * - `tidy_canvas` + `focus_viewport` — the tool binds a lead/connected caller's own token-derived
+ *   board id as `sourceBoardId`, and the HOST raises one approve/deny confirm when it is present; an
+ *   orchestrator caller binds none and stays un-gated.
+ * - `group_boards` + `edit_groups` — human batch-confirmed host-side for EVERY tier (D2).
+ *
+ * `canvas://contexts`, `group_boards` and `edit_groups` sit on OPTIONAL Orchestrator methods: each is
+ * skipped — with one `console.warn` — when the host has not wired its method.
+ */
+function registerSpatialSurface(
+  server: McpServer,
+  orchestrator: Orchestrator,
+  ctx: SessionCtx
+): void {
+  registerTidyCanvas(server, orchestrator, { ctx })
+  registerFocusViewport(server, orchestrator, { ctx })
+  registerGroupBoards(server, orchestrator, { ctx })
+  registerEditGroups(server, orchestrator, { ctx })
+  registerLayoutResource(server, orchestrator)
+  registerContextsResource(server, orchestrator)
+}
 
 /**
  * Builds a fresh McpServer per session, registering ONLY the tools the session's
@@ -133,22 +163,13 @@ export class ServerFactory {
       // spawn_group (C2-wire) — spawn a feature-zone cluster in one cap-checked step. Orchestrator-
       // only to bound swarm growth (a connected agent must not grow the topology unaware).
       registerSpawnGroup(server, this.orchestrator)
-      // tidy_canvas (P2) — reposition the whole canvas via the deterministic packer. Orchestrator-
-      // only (rearranging everyone's boards is an orchestrator act) + UN-GATED (content-less,
-      // reposition-only, one-undo reversible — the spawn_group precedent; NOT behind planningWrite).
-      registerTidyCanvas(server, this.orchestrator)
-      // focus_viewport (H1) — fit the user's camera to a board / group / the whole canvas.
-      // Orchestrator-only (steering the user's viewport is an app-level helper act) + UN-GATED
-      // (viewport-only, content-less, reversible by scrolling — the tidy_canvas precedent).
-      registerFocusViewport(server, this.orchestrator)
       // canvas://app-model (C1) — read-only app self-model. Orchestrator-only: registered HERE (not
       // in registerBoardResources, which serves both tiers) so it is absent from a worker/connected
       // resources/list. The catalog/cap/TTL it exposes are of no use to a non-orchestrator.
       registerAppModelResource(server, this.orchestrator)
-      // canvas://layout (P1b) — read-only spatial digest (bbox/geometry/overlaps/arrangement).
-      // Orchestrator-tier, registered beside app-model (both are orchestrator planning fuel, absent
-      // from a worker/connected resources/list). The digest is host-computed (buildLayoutDigest).
-      registerLayoutResource(server, this.orchestrator)
+      // Spatial surface (C6 / D1): tidy_canvas + focus_viewport stay UN-GATED at this tier (no
+      // sourceBoardId is bound for an orchestrator caller); group writes are always batch-confirmed.
+      registerSpatialSurface(server, this.orchestrator, ctx)
       // M5 barriers — orchestrator-tier; dispose cancels any in-flight wait on session close.
       disposers.push(registerBarrierTools(server, this.orchestrator))
     } else if (ctx.tier === 'connected') {
@@ -175,6 +196,9 @@ export class ServerFactory {
       registerRelayPrompt(server, this.orchestrator, ctx, this.commandBoardId)
       // relay_prompts (rc.8) — the batch sibling, same own-board source binding applied per item.
       registerRelayPrompts(server, this.orchestrator, ctx, this.commandBoardId)
+      // Spatial surface (C6 / D1) — the terminal the user talks to can read the layout/contexts,
+      // tidy, focus and group. tidy/focus bind this board as sourceBoardId → the host confirms first.
+      registerSpatialSurface(server, this.orchestrator, ctx)
     } else if (ctx.tier === 'lead') {
       // 🔒 Lead tier (orchestration Phase 1, precondition X): a terminal board holding the
       // ORCHESTRATOR ROLE over the wire. Its dispatch authority binds to the CALLER'S OWN
@@ -184,12 +208,12 @@ export class ServerFactory {
       // only: spawn (spawn_board/spawn_group, both auto-cabled lead→spawned so dispatch into a
       // freshly-spawned worker is already authorized), dispatch (relay_prompt/relay_prompts
       // own-board-bound; assign_prompt routed through the relay path with this board as source),
-      // and JOIN (the M5 barriers). Deliberately OMITTED: handoff_prompt/interrupt/close_board/
-      // git_diff/configure_board/tidy_canvas/focus_viewport/app-model — the app-resident
-      // orchestrator's cross-board/observational and canvas-wide surfaces are NOT part of the
-      // spike (additive follow-ups if the lead role earns them). Planning writes stay flag-gated
-      // exactly like connected. The capability split is structural — a lead board's tools/list
-      // never even contains the omitted tools.
+      // and JOIN (the M5 barriers), plus the C6 spatial surface (D1, 0.27.0 — see
+      // registerSpatialSurface). Deliberately OMITTED: handoff_prompt/interrupt/close_board/
+      // git_diff/configure_board/app-model — the app-resident orchestrator's cross-board/
+      // observational surfaces are NOT part of the lead role (additive follow-ups if it earns
+      // them). Planning writes stay flag-gated exactly like connected. The capability split is
+      // structural — a lead board's tools/list never even contains the omitted tools.
       registerSpawnBoard(server, this.orchestrator, { planningWrite, ctx })
       registerSpawnGroup(server, this.orchestrator, { ctx })
       if (planningWrite) {
@@ -209,6 +233,8 @@ export class ServerFactory {
       // M5 barriers — the lead's JOIN over the boards it dispatched into; same dispose discipline
       // as the orchestrator tier (cancel in-flight waits on session close).
       disposers.push(registerBarrierTools(server, this.orchestrator))
+      // Spatial surface (C6 / D1) — same as connected: tidy/focus bind this board → host confirm.
+      registerSpatialSurface(server, this.orchestrator, ctx)
     }
 
     // write_result (T4.4) — the FIRST worker-tier WRITE tool. Registered for BOTH tiers
