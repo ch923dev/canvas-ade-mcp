@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_GIT_DIFF } from '../../constants'
 
@@ -27,8 +27,8 @@ export function registerGitDiff(server: McpServer, orchestrator: Orchestrator): 
         'empty string when it is not a git repo / has no changes. Terminal targets only; ' +
         'boardId is required.',
       inputSchema: z.object({
-              boardId: z.string().min(1)
-            })
+        boardId: z.string().min(1)
+      })
     },
     async (args) => {
       const diff = await orchestrator.gitDiff(args.boardId)

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { MAX_FOCUS_TARGET_ID, TOOL_FOCUS_VIEWPORT } from '../../constants'
 
@@ -23,16 +23,16 @@ export function registerFocusViewport(server: McpServer, orchestrator: Orchestra
     TOOL_FOCUS_VIEWPORT,
     {
       description:
-        'Move the USER\'S CAMERA (the canvas viewport — never a board): fit the view to one ' +
+        "Move the USER'S CAMERA (the canvas viewport — never a board): fit the view to one " +
         'board (`boardId`), one Named Group (`groupId`), or the whole canvas (neither). Pass at ' +
         'most ONE of boardId / groupId — ids come from canvas://boards, canvas://layout, or ' +
         'canvas://app-model. Orchestrator-tier only. Viewport-only and content-less: nothing is ' +
         'created, moved, resized, or deleted, and the user can scroll back at any time. Returns ' +
         '{ focused: "board" | "group" | "all", id? }. Errors on an unknown id.',
       inputSchema: z.object({
-              boardId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional(),
-              groupId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional()
-            })
+        boardId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional(),
+        groupId: z.string().min(1).max(MAX_FOCUS_TARGET_ID).optional()
+      })
     },
     async (args) => {
       // Exactly-one-or-none: both targets in one call is ambiguous — reject at the wire so the
@@ -40,9 +40,7 @@ export function registerFocusViewport(server: McpServer, orchestrator: Orchestra
       if (args.boardId !== undefined && args.groupId !== undefined) {
         return {
           isError: true,
-          content: [
-            { type: 'text', text: 'focus_viewport: pass at most one of boardId / groupId' }
-          ]
+          content: [{ type: 'text', text: 'focus_viewport: pass at most one of boardId / groupId' }]
         }
       }
       const result = await orchestrator.focusViewport({

@@ -2,3 +2,8 @@ dist/
 node_modules/
 coverage/
 pnpm-lock.yaml
+# Frozen historical working notes (handoffs, superpowers plans/specs). Prettier's markdown reflow
+# corrupts their hand-wrapped list continuations (e.g. turns a wrapped "+ foo" into a "- foo"
+# bullet), so they are kept byte-for-byte as written rather than reformatted.
+docs/handoffs/
+docs/superpowers/

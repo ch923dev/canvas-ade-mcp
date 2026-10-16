@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator, PlanningElementPatch } from '../../orchestrator/Orchestrator'
 import {
   MAX_PLANNING_DIAGRAM,
@@ -12,6 +12,7 @@ import {
   TOOL_UPDATE_PLANNING_ELEMENT
 } from '../../constants'
 import { specOpsArraySchema } from '../diagramSpec'
+import { CanvasToolError } from '../toolErrors'
 
 /**
  * Register the planning-element UPDATE + REMOVE tools (S6) — the read-then-update loop that closes the
@@ -46,50 +47,55 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
         "field that doesn't match the element's kind is rejected. Human-confirmed before it lands; the " +
         'edit renders as passive content and never runs anything.',
       inputSchema: z.object({
-              boardId,
-              elementId,
-              // ── note / text ───────────────────────────────────────────────────────────
-              text: z.string().min(1).max(MAX_PLANNING_TEXT).optional(),
-              tint: z.enum(['yellow', 'blue', 'green', 'plain']).optional(),
-              // ── checklist ─────────────────────────────────────────────────────────────
-              title: z.string().min(1).max(MAX_PLANNING_TITLE).optional(),
-              setItems: z
-                .array(
-                  z.object({
-                    id: z.string().min(1).max(MAX_PLANNING_ELEMENT_ID),
-                    label: z.string().min(1).max(MAX_PLANNING_LABEL).optional(),
-                    done: z.boolean().optional()
-                  })
-                )
-                .max(MAX_PLANNING_ITEMS)
-                .optional(),
-              addItems: z
-                .array(
-                  z.object({
-                    label: z.string().min(1).max(MAX_PLANNING_LABEL),
-                    done: z.boolean().optional()
-                  })
-                )
-                .max(MAX_PLANNING_ITEMS)
-                .optional(),
-              removeItemIds: z
-                .array(z.string().min(1).max(MAX_PLANNING_ELEMENT_ID))
-                .max(MAX_PLANNING_ITEMS)
-                .optional(),
-              // ── diagram (Mermaid engine) ──────────────────────────────────────────────
-              source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
-              // ── diagram (expanse engine, Phase 3) ─────────────────────────────────────
-              specOps: specOpsArraySchema.optional(),
-              // ── arrow ─────────────────────────────────────────────────────────────────
-              dx: z.number().finite().optional(),
-              dy: z.number().finite().optional()
+        boardId,
+        elementId,
+        // ── note / text ───────────────────────────────────────────────────────────
+        text: z.string().min(1).max(MAX_PLANNING_TEXT).optional(),
+        tint: z.enum(['yellow', 'blue', 'green', 'plain']).optional(),
+        // ── checklist ─────────────────────────────────────────────────────────────
+        title: z.string().min(1).max(MAX_PLANNING_TITLE).optional(),
+        setItems: z
+          .array(
+            z.object({
+              id: z.string().min(1).max(MAX_PLANNING_ELEMENT_ID),
+              label: z.string().min(1).max(MAX_PLANNING_LABEL).optional(),
+              done: z.boolean().optional()
             })
+          )
+          .max(MAX_PLANNING_ITEMS)
+          .optional(),
+        addItems: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(MAX_PLANNING_LABEL),
+              done: z.boolean().optional()
+            })
+          )
+          .max(MAX_PLANNING_ITEMS)
+          .optional(),
+        removeItemIds: z
+          .array(z.string().min(1).max(MAX_PLANNING_ELEMENT_ID))
+          .max(MAX_PLANNING_ITEMS)
+          .optional(),
+        // ── diagram (Mermaid engine) ──────────────────────────────────────────────
+        source: z.string().min(1).max(MAX_PLANNING_DIAGRAM).optional(),
+        // ── diagram (expanse engine, Phase 3) ─────────────────────────────────────
+        specOps: specOpsArraySchema.optional(),
+        // ── arrow ─────────────────────────────────────────────────────────────────
+        dx: z.number().finite().optional(),
+        dy: z.number().finite().optional()
+      })
     },
     async (args) => {
       // `source` and `specOps` target different diagram ENGINES — never both in one patch
       // (transport-layer guard; the host rejects against the element's resolved engine anyway).
       if (args.source !== undefined && args.specOps !== undefined) {
-        throw new Error('supply either "source" (Mermaid) or "specOps" (expanse), not both')
+        // A THROW (not a returned refusal), so it is tagged here: an untagged Error would map to
+        // `internal`, but this is an argument rejection. Same text as before codes existed.
+        throw new CanvasToolError(
+          'invalid_input',
+          'supply either "source" (Mermaid) or "specOps" (expanse), not both'
+        )
       }
       // Assemble the FLAT patch from only the present fields (the host requires ≥1 applicable field
       // and re-validates each against the resolved element's kind).

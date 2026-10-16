@@ -1,5 +1,5 @@
-import { ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
-import type { McpServer } from "@modelcontextprotocol/server";
+import { ProtocolError, ProtocolErrorCode } from '@modelcontextprotocol/server'
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { SessionCtx } from '../server/factory'
 import type { PromptArgs } from './registry'
 import { promptRegistry } from './registry'

@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator, RelayResult } from '../../orchestrator/Orchestrator'
 import type { BoardId } from '../../types'
 import type { SessionCtx } from '../factory'
 import { MAX_RELAY_BATCH, TOOL_RELAY_PROMPTS } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
+import { toolErrorResult } from '../toolErrors'
 
 /**
  * Register the `relay_prompts` BATCH agent-to-agent dispatch tool — the plural of `relay_prompt`
@@ -43,17 +44,17 @@ export function registerRelayPrompts(
         'already exist and both ends be terminals. The human approves per row and each approved ' +
         `item runs as a single command line. items required (1..${MAX_RELAY_BATCH}).`,
       inputSchema: z.object({
-              items: z
-                .array(
-                  z.object({
-                    sourceId: z.string().min(1),
-                    targetId: z.string().min(1),
-                    prompt: dispatchPromptSchema
-                  })
-                )
-                .min(1)
-                .max(MAX_RELAY_BATCH)
+        items: z
+          .array(
+            z.object({
+              sourceId: z.string().min(1),
+              targetId: z.string().min(1),
+              prompt: dispatchPromptSchema
             })
+          )
+          .min(1)
+          .max(MAX_RELAY_BATCH)
+      })
     },
     async (args) => {
       // 🔒 Tier-aware caller-identity binding, applied to EVERY item (mirrors relay_prompt). A
@@ -63,26 +64,16 @@ export function registerRelayPrompts(
         // connected — commandBoardId is ignored at this tier (it designates the 'app' path only).
         const foreign = args.items.some((it) => it.sourceId !== ctx.boardId)
         if (foreign) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: `relay_prompts: a ${ctx.tier} terminal may only relay from its own board`
-              }
-            ]
-          }
+          return toolErrorResult(
+            'unauthorized',
+            `relay_prompts: a ${ctx.tier} terminal may only relay from its own board`
+          )
         }
       } else if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: 'relay_prompts: caller is not the designated command orchestrator'
-            }
-          ]
-        }
+        return toolErrorResult(
+          'unauthorized',
+          'relay_prompts: caller is not the designated command orchestrator'
+        )
       }
 
       const results = await orchestrator.relayPrompts(

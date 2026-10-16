@@ -6,8 +6,9 @@ turns the canvas from a human-driven cockpit into an **AI-orchestratable swarm e
 **command board** (an orchestrator agent) driving a fleet of worker agents.
 
 > **Status:** shipped + consumed. Published to npm as `@expanse-ade/mcp` (tag-push → OIDC trusted
-> publishing); the app pins an exact version. 25 tools across the orchestrator/connected/worker
-> tiers, contract + live test suites green. Historical build order in [`docs/roadmap.md`](docs/roadmap.md).
+> publishing); the app pins an exact version. 26 tools across the orchestrator/lead/connected/worker
+> tiers (each tier registers only its own subset); contract + live suites gate every PR
+> (`.github/workflows/pr.yml`). Historical build order in [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
@@ -111,6 +112,34 @@ output + holds dispatch power + has external comms (commit/PR/navigate). Therefo
   `127.0.0.1`, never `0.0.0.0`.
 - Preserves Canvas ADE's locked invariant: **Browser-board content must never reach the PTY write
   channel**; orchestrator prompt text is trusted-user-only and fully audit-logged.
+
+---
+
+## Structured tool errors (0.26.0)
+
+Every failed `tools/call` result carries a machine-readable code next to its text, so an agent can
+branch on the failure instead of string-matching it:
+
+```json
+{
+  "isError": true,
+  "content": [{ "type": "text", "text": "board not found: b7" }],
+  "structuredContent": { "error": { "code": "not_found", "message": "board not found: b7" } }
+}
+```
+
+- **Closed vocabulary** (`TOOL_ERROR_CODES`): `invalid_input` · `not_found` · `declined` ·
+  `unauthorized` · `conflict` · `cap_exceeded` · `app_unavailable` · `internal`. Per-code meaning
+  and the agent's expected reaction are documented in `src/server/toolErrors.ts`.
+- **Text is unchanged.** `content[0].text` is byte-identical to the pre-code output; the code is
+  purely additive (contract-tested against a bare SDK server).
+- **The host classifies** by rejecting an `Orchestrator` method with
+  `new CanvasToolError(code, message)` (or any `Error` whose `code` is in the vocabulary). Anything
+  unclassified is `internal`. Schema rejections and in-tool argument refusals are `invalid_input`.
+- **Mechanism:** one boundary per session server (`src/server/toolErrorBoundary.ts`) wraps
+  `registerTool`, so no tool file carries error plumbing.
+- **Not covered:** calling a tool the session's tier does not register never reaches a tool — SDK v2
+  answers with a JSON-RPC error `-32602` `Tool <name> not found` (the call rejects; no result).
 
 ---
 

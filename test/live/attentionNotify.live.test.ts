@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
 import { EmittingOrchestrator } from '../helpers/emittingOrchestrator'
 

@@ -1,4 +1,4 @@
-import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { Orchestrator } from '../../src/orchestrator/Orchestrator'
 import { ServerFactory } from '../../src/server/factory'

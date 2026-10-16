@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import {
   DEFAULT_BARRIER_TIMEOUT_MS,
@@ -8,6 +8,7 @@ import {
   TOOL_WAIT_FOR_IDLE
 } from '../../constants'
 import { waitForBoards, type BarrierBoardResult } from '../barrierWaiter'
+import { toolErrorResult, type ToolErrorResult } from '../toolErrors'
 
 /**
  * Resolve the effective backstop: an explicit per-call `timeoutMs` wins (≤ 0 / non-finite
@@ -53,17 +54,14 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
     }
   }
 
-  const overCap = (): { isError: true; content: Array<{ type: 'text'; text: string }> } => ({
-    isError: true,
-    content: [
-      {
-        type: 'text',
-        text:
-          `too many concurrent barrier waits (max ${MAX_ACTIVE_BARRIERS} per session) — ` +
-          'wait for one to settle first (wait_for_all joins a LIST in a single wait)'
-      }
-    ]
-  })
+  // Coded `cap_exceeded` (0.26.0) — not the boundary's `invalid_input` default: the arguments are
+  // fine, the session is just at its concurrent-wait cap. Text unchanged.
+  const overCap = (): ToolErrorResult =>
+    toolErrorResult(
+      'cap_exceeded',
+      `too many concurrent barrier waits (max ${MAX_ACTIVE_BARRIERS} per session) — ` +
+        'wait for one to settle first (wait_for_all joins a LIST in a single wait)'
+    )
 
   server.registerTool(
     TOOL_WAIT_FOR_IDLE,
@@ -74,9 +72,9 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
         "id + status (+ the board's last write_result when idle). boardId is required; " +
         'optional timeoutMs (omit for the default backstop; <=0 to wait indefinitely).',
       inputSchema: z.object({
-              boardId: z.string().min(1),
-              timeoutMs: z.number().optional()
-            })
+        boardId: z.string().min(1),
+        timeoutMs: z.number().optional()
+      })
     },
     async (args) => {
       const results = await run([args.boardId], resolveBarrierTimeout(args.timeoutMs))
@@ -95,9 +93,9 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
         'idle). boardIds is a non-empty array; optional timeoutMs (omit for the default ' +
         'backstop; <=0 to wait indefinitely).',
       inputSchema: z.object({
-              boardIds: z.array(z.string().min(1)).min(1),
-              timeoutMs: z.number().optional()
-            })
+        boardIds: z.array(z.string().min(1)).min(1),
+        timeoutMs: z.number().optional()
+      })
     },
     async (args) => {
       const boards = await run(args.boardIds, resolveBarrierTimeout(args.timeoutMs))

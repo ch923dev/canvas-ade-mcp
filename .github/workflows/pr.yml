@@ -1,0 +1,48 @@
+name: pr
+
+# The merge gate. Until this workflow existed the repo's only CI was publish.yml, which fires on a
+# version TAG — so a broken PR merged to main ungated and the breakage surfaced only at release time
+# (or, worse, in the consuming app after a pin bump). This runs the full local gate on every PR and
+# on every push to main.
+#
+# Setup MIRRORS publish.yml (Node 22, corepack-provided pnpm from package.json `packageManager`,
+# frozen-lockfile install) so a green PR predicts a green publish run. No npm upgrade step: that
+# exists in publish.yml only for OIDC trusted publishing, which this workflow never does.
+#
+# `test:live` IS included: the live suite is hermetic. Every live test self-hosts the REAL loopback
+# HTTP server (`createMcpHttpServer` on 127.0.0.1, ephemeral port — test/helpers/httpServer.ts)
+# against the in-package MockOrchestrator / an emitting test orchestrator. It needs no running
+# Expanse app, no Electron, no network beyond loopback, and no secrets — ADR 0004: "this package's
+# live suite is self-hosted loopback by design". The real-app proof stays the host's MAIN-wiring
+# smoke in expanse-desktop.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same PR supersedes the older run; main runs are never cancelled mid-flight.
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22 # same as publish.yml
+          package-manager-cache: false # v5 defaults this true → it auto-detects pnpm and caches before corepack installs it
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test # contract suite (in-memory transport, mock orchestrator)
+      - run: pnpm test:live # live suite (real loopback HTTP server, mock orchestrator — hermetic)
+      - run: pnpm build

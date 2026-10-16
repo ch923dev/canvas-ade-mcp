@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
-import { isInitializeRequest } from "@modelcontextprotocol/server";
-import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
+import { isInitializeRequest } from '@modelcontextprotocol/server'
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
 import {
   DEFAULT_SESSION_IDLE_TTL_MS,
   HEADER_SESSION_ID,

@@ -1,4 +1,5 @@
 import type { BoardId } from '../types'
+import type { ToolErrorCode } from '../server/toolErrors'
 
 /** Minimal board projection exposed to agents. */
 export interface BoardSummary {
@@ -463,6 +464,14 @@ export interface RelayResult {
  * The canvas control surface injected by Canvas ADE MAIN. Phase 0 defines the
  * shape; tools wire to it in later phases. Keeping it an interface (with a mock)
  * lets canvas-ade-mcp build + test standalone, with no Electron dependency.
+ *
+ * **Failure classification (0.26.0).** A method that rejects becomes a failed tool result whose
+ * text is exactly the error's `message` (unchanged from before codes existed). To also give the
+ * agent a machine-readable `structuredContent.error.code`, reject with a `CanvasToolError`
+ * — e.g. `new CanvasToolError('not_found', 'board not found: b7')`, or `'declined'` for a
+ * human-gate refusal — or with any `Error` whose `code` is a valid `ToolErrorCode`. Any other
+ * rejection is coded `internal`. Classifying is optional and additive: an unmigrated host keeps
+ * working, its failures just all read `internal`.
  */
 export interface Orchestrator {
   listBoards(): Promise<BoardSummary[]>
@@ -571,11 +580,15 @@ export interface Orchestrator {
    *
    * OPTIONAL on the interface so an older host that has not wired it keeps type-checking; the tool
    * is simply absent from `tools/list` when it is unwired.
+   *
+   * A refusal (`ok: false`) is a RETURNED value, not a throw, so it cannot carry a
+   * `CanvasToolError`; set the optional `code` instead (0.26.0) — e.g. `not_found` for an
+   * unknown board, `conflict` for a board removed while the confirm was open. Absent ⇒ `internal`.
    */
   publishFindings?(
     boardId: BoardId,
     opts?: { lane?: string }
-  ): Promise<{ ok: boolean; published: number; summary: string }>
+  ): Promise<{ ok: boolean; published: number; summary: string; code?: ToolErrorCode }>
   /**
    * 🔒 Visualize a flat plan as a NEW board (P5). Orchestrator/connected-tier, flag-gated
    * (`planningWrite`). The host validates + sanitizes + caps the plan, then surfaces the UPGRADED

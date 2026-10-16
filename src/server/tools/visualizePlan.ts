@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator, PlanItem, Visualization } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import {
@@ -56,10 +56,10 @@ export function registerVisualizePlan(
         'is then tidied into open space. Give "title" to name the board. Nothing runs — this only ' +
         'draws passive content. Declined proposals change nothing. Subject to per-call item/size caps.',
       inputSchema: z.object({
-              items: planItemsArraySchema,
-              suggested: z.enum(VISUALIZATIONS).optional(),
-              title: z.string().min(1).max(MAX_PLAN_TITLE).optional()
-            })
+        items: planItemsArraySchema,
+        suggested: z.enum(VISUALIZATIONS).optional(),
+        title: z.string().min(1).max(MAX_PLAN_TITLE).optional()
+      })
     },
     async (args) => {
       const { id, queuedFor } = await orchestrator.visualizePlan({
