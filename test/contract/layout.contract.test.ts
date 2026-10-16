@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 
 // canvas://layout (P1b) is the read-only spatial digest resource — bounding box, per-board geometry,
-// overlaps, and a coarse arrangement. ORCHESTRATOR-TIER ONLY: registered inside the orchestrator
-// block in ServerFactory (beside canvas://app-model, NOT in registerBoardResources), so a
-// worker/connected resources/list never contains it. MockOrchestrator.describeLayout returns a
-// minimal LayoutDigest-shaped object — enough to prove the wire + the tier gate.
+// overlaps, and a coarse arrangement (v2 adds groups / screen / fit, host-owned). Widened in 0.27.0
+// (spatial-awareness D1) from orchestrator-only to ORCHESTRATOR + LEAD + CONNECTED: registered by
+// ServerFactory's shared spatial block, so only a worker resources/list lacks it.
+// MockOrchestrator.describeLayout returns a minimal LayoutDigest-shaped object — enough to prove the
+// wire + the tier gate.
 const URI = 'canvas://layout'
 
 function uris(list: { resources: Array<{ uri: string }> }): string[] {
@@ -16,24 +17,33 @@ function readText(contents: ReadonlyArray<{ uri?: unknown; text?: unknown }>): s
   return contents.map((c) => (typeof c.text === 'string' ? c.text : '')).join('')
 }
 
-describe('canvas://layout resource (P1b, orchestrator-tier spatial digest)', () => {
+describe('canvas://layout resource (P1b, spatial digest — orchestrator/lead/connected)', () => {
   it('orchestrator resources/list INCLUDES canvas://layout', async () => {
     const client = await connectInMemory('orchestrator')
     expect(uris(await client.listResources())).toContain(URI)
     await client.close()
   })
 
-  it('worker resources/list OMITS canvas://layout (orchestrator-only)', async () => {
+  it('worker resources/list OMITS canvas://layout', async () => {
     const client = await connectInMemory('worker')
     expect(uris(await client.listResources())).not.toContain(URI)
     await client.close()
   })
 
-  it('connected resources/list OMITS canvas://layout (orchestrator-only)', async () => {
-    const client = await connectInMemory('connected')
-    expect(uris(await client.listResources())).not.toContain(URI)
-    await client.close()
-  })
+  for (const tier of ['lead', 'connected'] as const) {
+    it(`${tier} resources/list INCLUDES canvas://layout (D1 widening, 0.27.0)`, async () => {
+      const client = await connectInMemory(tier)
+      expect(uris(await client.listResources())).toContain(URI)
+      await client.close()
+    })
+
+    it(`${tier} can read canvas://layout`, async () => {
+      const client = await connectInMemory(tier)
+      const res = await client.readResource({ uri: URI })
+      expect(JSON.parse(readText(res.contents))).toMatchObject({ version: 1 })
+      await client.close()
+    })
+  }
 
   it('returns JSON with the expected LayoutDigest shape', async () => {
     const client = await connectInMemory('orchestrator')
