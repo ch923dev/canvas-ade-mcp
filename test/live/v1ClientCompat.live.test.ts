@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { mintToken, startTestServer, type TestServer } from '../helpers/httpServer'
-import { TOOL_PING } from '../../src/constants'
+import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../../src/constants'
 
 describe('v1-client back-compat (spec 2025-06-18 stateful line, real HTTP)', () => {
   let ts: TestServer
@@ -101,6 +101,21 @@ describe('v1-client back-compat (spec 2025-06-18 stateful line, real HTTP)', () 
       body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/list', id: 9 })
     })
     expect(after.status).toBe(404)
+  })
+
+  it('v1 client: an unregistered (other-tier) tool REJECTS with McpError -32602', async () => {
+    // What today's clients (Claude Code speaks the v1-shaped 2025-06-18 line) see when they call a
+    // tool their tier does not register: the call rejects — there is no isError result to read.
+    // v1's McpError prefixes the server message with "MCP error <code>: ".
+    const client = new Client({ name: 'v1-compat', version: '1.29.0' })
+    await client.connect(v1Transport())
+    const err = await client.callTool({ name: TOOL_ORCHESTRATOR_PING }).then(
+      () => undefined,
+      (e: unknown) => e as { code?: number; message?: string }
+    )
+    expect(err?.code).toBe(-32602)
+    expect(err?.message).toBe(`MCP error -32602: Tool ${TOOL_ORCHESTRATOR_PING} not found`)
+    await client.close()
   })
 
   it('v1 client DELETE teardown 404s the session for reuse', async () => {

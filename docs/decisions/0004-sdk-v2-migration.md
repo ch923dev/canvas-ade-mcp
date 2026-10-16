@@ -42,9 +42,12 @@ transport class name). The re-expression worksheet for a future stateless adopti
 ## Consequences
 
 - One observable protocol-shape change: an unregistered tool call is answered with a
-  protocol-layer method-not-found ERROR (client call rejects) instead of v1's `isError` RESULT.
+  protocol-layer JSON-RPC ERROR (client call rejects) instead of v1's `isError` RESULT.
   Tier enforcement is unaffected (ADR 0002 D1 holds); `tierCall.live.test.ts` asserts the new
-  shape.
+  shape. _Correction (0.26.0):_ the code is `-32602` InvalidParams with message
+  `Tool <name> not found` — NOT `-32601` method-not-found (`tools/call` exists; only the named
+  tool does not). The v2 client surfaces it verbatim; the v1 client as
+  `MCP error -32602: Tool <name> not found`. Both are now pinned exactly (tierCall + v1-compat).
 - Wire behavior for current clients is otherwise unchanged and covered by the v1-compat lane
   (handshake echo of 2025-06-18, session reuse, GET-SSE, DELETE→404).
 - Node floor unchanged (>= 20). Peers satisfied by existing `express` 5.2.1 and `zod` 4.4.3.
