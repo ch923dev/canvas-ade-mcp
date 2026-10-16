@@ -12,6 +12,7 @@ import {
   TOOL_UPDATE_PLANNING_ELEMENT
 } from '../../constants'
 import { specOpsArraySchema } from '../diagramSpec'
+import { CanvasToolError } from '../toolErrors'
 
 /**
  * Register the planning-element UPDATE + REMOVE tools (S6) — the read-then-update loop that closes the
@@ -89,7 +90,12 @@ export function registerPlanningEdit(server: McpServer, orchestrator: Orchestrat
       // `source` and `specOps` target different diagram ENGINES — never both in one patch
       // (transport-layer guard; the host rejects against the element's resolved engine anyway).
       if (args.source !== undefined && args.specOps !== undefined) {
-        throw new Error('supply either "source" (Mermaid) or "specOps" (expanse), not both')
+        // A THROW (not a returned refusal), so it is tagged here: an untagged Error would map to
+        // `internal`, but this is an argument rejection. Same text as before codes existed.
+        throw new CanvasToolError(
+          'invalid_input',
+          'supply either "source" (Mermaid) or "specOps" (expanse), not both'
+        )
       }
       // Assemble the FLAT patch from only the present fields (the host requires ≥1 applicable field
       // and re-validates each against the resolved element's kind).

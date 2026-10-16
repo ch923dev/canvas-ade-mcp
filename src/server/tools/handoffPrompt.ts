@@ -4,6 +4,7 @@ import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_HANDOFF_PROMPT } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
 import { resolveBarrierTimeout } from './barriers'
+import { toolErrorResult } from '../toolErrors'
 
 /** Race sentinel — never a value `handoffPrompt` could resolve to. */
 const TIMED_OUT = Symbol('handoff-timed-out')
@@ -63,18 +64,14 @@ export function registerHandoffPrompt(server: McpServer, orchestrator: Orchestra
           // The abandoned host promise may still reject later — detach it so an
           // eventual rejection can't surface as an unhandled rejection in MAIN.
           void call.catch(() => {})
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text:
-                  `handoff_prompt: timed out after ${timeoutMs}ms waiting for board ` +
-                  `${args.boardId} to go idle — the dispatch may still be running; ` +
-                  `read canvas://board/${args.boardId}/result later`
-              }
-            ]
-          }
+          // `conflict` (0.26.0): the call was valid, but the target has not settled and the
+          // dispatch may still be in flight — re-read state, never blindly re-dispatch.
+          return toolErrorResult(
+            'conflict',
+            `handoff_prompt: timed out after ${timeoutMs}ms waiting for board ` +
+              `${args.boardId} to go idle — the dispatch may still be running; ` +
+              `read canvas://board/${args.boardId}/result later`
+          )
         }
         return { content: [{ type: 'text', text: JSON.stringify(raced) }] }
       } finally {

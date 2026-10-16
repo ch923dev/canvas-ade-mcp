@@ -10,6 +10,7 @@ import {
   TOOL_SPAWN_BOARD
 } from '../../constants'
 import { planningElementsArraySchema } from './addPlanningElements'
+import { toolErrorCodeOf, toolErrorResult } from '../toolErrors'
 
 /**
  * Register the `spawn_board` lifecycle tool (T3.1) — the first WRITE tool. The
@@ -129,17 +130,14 @@ export function registerSpawnBoard(
         try {
           await orchestrator.addPlanningElements(id, { elements: seed })
         } catch (err) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: `spawn_board: created ${id} but the seed was not written: ${
-                  err instanceof Error ? err.message : String(err)
-                }`
-              }
-            ]
-          }
+          // The code is the HOST's classification of the seed write (e.g. `declined` when the
+          // human refused the content) — not the boundary's `invalid_input` default.
+          return toolErrorResult(
+            toolErrorCodeOf(err),
+            `spawn_board: created ${id} but the seed was not written: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
         }
       }
       // content[0] stays the bare id (back-compat with okText-style parsers + existing e2e);

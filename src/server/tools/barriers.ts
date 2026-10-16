@@ -8,6 +8,7 @@ import {
   TOOL_WAIT_FOR_IDLE
 } from '../../constants'
 import { waitForBoards, type BarrierBoardResult } from '../barrierWaiter'
+import { toolErrorResult, type ToolErrorResult } from '../toolErrors'
 
 /**
  * Resolve the effective backstop: an explicit per-call `timeoutMs` wins (≤ 0 / non-finite
@@ -53,17 +54,14 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
     }
   }
 
-  const overCap = (): { isError: true; content: Array<{ type: 'text'; text: string }> } => ({
-    isError: true,
-    content: [
-      {
-        type: 'text',
-        text:
-          `too many concurrent barrier waits (max ${MAX_ACTIVE_BARRIERS} per session) — ` +
-          'wait for one to settle first (wait_for_all joins a LIST in a single wait)'
-      }
-    ]
-  })
+  // Coded `cap_exceeded` (0.26.0) — not the boundary's `invalid_input` default: the arguments are
+  // fine, the session is just at its concurrent-wait cap. Text unchanged.
+  const overCap = (): ToolErrorResult =>
+    toolErrorResult(
+      'cap_exceeded',
+      `too many concurrent barrier waits (max ${MAX_ACTIVE_BARRIERS} per session) — ` +
+        'wait for one to settle first (wait_for_all joins a LIST in a single wait)'
+    )
 
   server.registerTool(
     TOOL_WAIT_FOR_IDLE,

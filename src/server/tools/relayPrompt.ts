@@ -5,6 +5,7 @@ import type { BoardId } from '../../types'
 import type { SessionCtx } from '../factory'
 import { TOOL_RELAY_PROMPT } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
+import { toolErrorResult } from '../toolErrors'
 
 /**
  * Register the `relay_prompt` agent-to-agent DISPATCH tool (T4.6, the M4 gate). A dispatch
@@ -65,29 +66,19 @@ export function registerRelayPrompt(
         // The lead tier (precondition X) is the point of the generalization: its dispatch
         // authority binds to the CALLER'S board id, never to `commandBoardId` — which it ignores.
         if (args.sourceId !== ctx.boardId) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: `relay_prompt: a ${ctx.tier} terminal may only relay from its own board`
-              }
-            ]
-          }
+          return toolErrorResult(
+            'unauthorized',
+            `relay_prompt: a ${ctx.tier} terminal may only relay from its own board`
+          )
         }
       } else if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
         // 🔒 BUG-021: when a command board is designated, only that token-bound identity may
         // relay — a second orchestrator token (bound to another board) can't exploit a cable
         // it doesn't own. ctx.boardId comes from the verified token, so it can't be forged.
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: 'relay_prompt: caller is not the designated command orchestrator'
-            }
-          ]
-        }
+        return toolErrorResult(
+          'unauthorized',
+          'relay_prompt: caller is not the designated command orchestrator'
+        )
       }
       // rc.6 honest ack: a readiness-gated host resolves { delivery }; a pre-rc.6 host resolves
       // undefined (treated as the legacy confirmed path). 'unconfirmed' = the write landed but

@@ -27,6 +27,7 @@ import { registerRelayPrompt } from './tools/relayPrompt'
 import { registerRelayPrompts } from './tools/relayPrompts'
 import { registerBarrierTools } from './tools/barriers'
 import { installResourceSubscriptions } from './resourceSubscriptions'
+import { installToolErrorBoundary } from './toolErrorBoundary'
 import { createAttentionNotifier } from './attentionNotifier'
 
 /** Per-session context, derived from the validated bearer token. */
@@ -68,6 +69,10 @@ export class ServerFactory {
 
   getServer(ctx: SessionCtx): { server: McpServer; dispose: () => void } {
     const server = new McpServer(SERVER_INFO)
+    // Structured tool errors (0.26.0): wrap THIS instance's registerTool before anything registers,
+    // so every tool below — whatever the tier — answers a failure with the same text as before PLUS
+    // `structuredContent.error.code`. One central boundary; no per-tool edits (toolErrorBoundary.ts).
+    installToolErrorBoundary(server)
     const disposers: Array<() => void> = []
     // Re-evaluate the planning-write gate ONCE per session (the host's orchestration consent is
     // runtime-toggleable while this server is a process singleton — a fixed boot-time boolean

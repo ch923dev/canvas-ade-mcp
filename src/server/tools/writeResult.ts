@@ -8,6 +8,7 @@ import {
   WRITE_RESULT_MAX_REFS,
   WRITE_RESULT_MAX_SUMMARY
 } from '../../constants'
+import { toolErrorResult } from '../toolErrors'
 
 /**
  * Register the `write_result` tool (T4.4) — the FIRST worker-tier WRITE tool. A worker
@@ -50,10 +51,7 @@ export function registerWriteResult(
       // no-op or hit a sentinel while the agent believes its result was recorded.
       // Refuse loudly instead of writing to an unbound board.
       if (!ctx.boardId) {
-        return {
-          isError: true,
-          content: [{ type: 'text', text: 'write_result: no board bound to this session' }]
-        }
+        return toolErrorResult('unauthorized', 'write_result: no board bound to this session')
       }
       await orchestrator.writeResult(ctx.boardId, {
         status: args.status,

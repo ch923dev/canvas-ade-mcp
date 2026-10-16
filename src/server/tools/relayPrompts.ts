@@ -5,6 +5,7 @@ import type { BoardId } from '../../types'
 import type { SessionCtx } from '../factory'
 import { MAX_RELAY_BATCH, TOOL_RELAY_PROMPTS } from '../../constants'
 import { dispatchPromptSchema } from './promptSchema'
+import { toolErrorResult } from '../toolErrors'
 
 /**
  * Register the `relay_prompts` BATCH agent-to-agent dispatch tool — the plural of `relay_prompt`
@@ -63,26 +64,16 @@ export function registerRelayPrompts(
         // connected — commandBoardId is ignored at this tier (it designates the 'app' path only).
         const foreign = args.items.some((it) => it.sourceId !== ctx.boardId)
         if (foreign) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: `relay_prompts: a ${ctx.tier} terminal may only relay from its own board`
-              }
-            ]
-          }
+          return toolErrorResult(
+            'unauthorized',
+            `relay_prompts: a ${ctx.tier} terminal may only relay from its own board`
+          )
         }
       } else if (commandBoardId !== undefined && ctx.boardId !== commandBoardId) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: 'relay_prompts: caller is not the designated command orchestrator'
-            }
-          ]
-        }
+        return toolErrorResult(
+          'unauthorized',
+          'relay_prompts: caller is not the designated command orchestrator'
+        )
       }
 
       const results = await orchestrator.relayPrompts(

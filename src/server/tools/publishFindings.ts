@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { MAX_COLUMN_ID, TOOL_PUBLISH_FINDINGS } from '../../constants'
+import { isToolErrorCode, toolErrorResult } from '../toolErrors'
 
 /**
  * Register `publish_findings` (orchestration P4) — the END-OF-RUN durable aggregation tool.
@@ -46,9 +47,12 @@ export function registerPublishFindings(server: McpServer, orchestrator: Orchest
       // A refusal is reported as a tool ERROR so the agent cannot read it as a successful publish.
       // Publishing ZERO cards is NOT a refusal: an empty batch, or a human declining every row, is
       // a legitimate answer that wrote nothing — it resolves ok with its reason in the summary.
+      // The refusal's code is the host's own classification (`r.code`, 0.26.0); a host that does
+      // not set one (or sets an off-vocabulary value) reads `internal` — never the boundary's
+      // `invalid_input` default, which would wrongly tell the agent its arguments were bad.
       return r.ok
         ? { content: [{ type: 'text' as const, text: r.summary }] }
-        : { isError: true, content: [{ type: 'text' as const, text: r.summary }] }
+        : toolErrorResult(isToolErrorCode(r.code) ? r.code : 'internal', r.summary)
     }
   )
 }

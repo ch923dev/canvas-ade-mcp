@@ -122,6 +122,19 @@ export {
   MAX_KANBAN_COLUMNS,
   MAX_KANBAN_CARDS
 } from './constants'
+// Structured tool errors (0.26.0). The HOST throws `CanvasToolError(code, message)` from an
+// Orchestrator method to classify a failure; every failed tool result carries
+// `structuredContent.error.code` from the closed `TOOL_ERROR_CODES` vocabulary alongside the
+// unchanged text. `toolErrorResult` / `toolErrorCodeOf` are exported so a host test can build or
+// classify the exact shape the package emits.
+export {
+  TOOL_ERROR_CODES,
+  CanvasToolError,
+  isToolErrorCode,
+  toolErrorCodeOf,
+  toolErrorResult
+} from './server/toolErrors'
+export type { ToolErrorCode, ToolErrorResult } from './server/toolErrors'
 export type { Tier, Scope, AuthRow, BoardId } from './types'
 // Prompts substrate (W1-F) — the in-package "skills" foundation. `registerPrompts`
 // stays internal (called only by ServerFactory); the registry + types are public so
