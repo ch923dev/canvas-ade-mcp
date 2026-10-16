@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { BoardConfig, Orchestrator } from '../../orchestrator/Orchestrator'
 import { KANBAN_COLUMN_AXES, MAX_AXIS_LABEL, TOOL_CONFIGURE_BOARD } from '../../constants'
 
@@ -21,13 +21,13 @@ export function registerConfigureBoard(server: McpServer, orchestrator: Orchestr
         'buckets) and axisLabel (the axis display name, e.g. "Phase"/"Subsystem") are KANBAN config. ' +
         'Human-confirmed when it sets an exec vector (launchCommand) or renderable kanban axis content.',
       inputSchema: z.object({
-              id: z.string().min(1),
-              shell: z.string().optional(),
-              launchCommand: z.string().optional(),
-              cwd: z.string().optional(),
-              columnAxis: z.enum(KANBAN_COLUMN_AXES).optional(),
-              axisLabel: z.string().min(1).max(MAX_AXIS_LABEL).optional()
-            })
+        id: z.string().min(1),
+        shell: z.string().optional(),
+        launchCommand: z.string().optional(),
+        cwd: z.string().optional(),
+        columnAxis: z.enum(KANBAN_COLUMN_AXES).optional(),
+        axisLabel: z.string().min(1).max(MAX_AXIS_LABEL).optional()
+      })
     },
     async (args) => {
       const config: BoardConfig = {}

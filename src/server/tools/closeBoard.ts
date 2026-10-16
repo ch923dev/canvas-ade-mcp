@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import { TOOL_CLOSE_BOARD } from '../../constants'
 

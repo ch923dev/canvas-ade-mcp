@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import { TOOL_ASSIGN_PROMPT } from '../../constants'
@@ -45,9 +45,9 @@ export function registerAssignPrompt(
             'rejected.'
           : ''),
       inputSchema: z.object({
-              boardId: z.string().min(1),
-              prompt: dispatchPromptSchema
-            })
+        boardId: z.string().min(1),
+        prompt: dispatchPromptSchema
+      })
     },
     async (args) => {
       // rc.6 honest ack: a readiness-gated host resolves { delivery }; a pre-rc.6 host resolves

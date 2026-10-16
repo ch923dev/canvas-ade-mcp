@@ -28,5 +28,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# Local editor-hook cache (also read by Prettier, which honours .gitignore but not .git/info/exclude)
+.impeccable/
 
 .worktrees/

@@ -1,5 +1,5 @@
-import { ProtocolError, ProtocolErrorCode } from "@modelcontextprotocol/server";
-import type { McpServer } from "@modelcontextprotocol/server";
+import { ProtocolError, ProtocolErrorCode } from '@modelcontextprotocol/server'
+import type { McpServer } from '@modelcontextprotocol/server'
 import { ATTENTION_URI } from '../resources/attention'
 
 export interface ResourceSubscriptions {
@@ -31,7 +31,10 @@ export function installResourceSubscriptions(server: McpServer): ResourceSubscri
     // 🔒 Bound the per-session Set to the allowlist: a subscribe to a URI that never updates
     // fails loudly (InvalidParams) instead of silently never firing + allocating forever.
     if (!SUBSCRIBABLE.has(uri)) {
-      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `resource is not subscribable: ${uri}`)
+      throw new ProtocolError(
+        ProtocolErrorCode.InvalidParams,
+        `resource is not subscribable: ${uri}`
+      )
     }
     uris.add(uri)
     return {}

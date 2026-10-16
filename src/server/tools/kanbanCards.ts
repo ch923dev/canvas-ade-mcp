@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import {
   MAX_CARD_ASSIGNEE,
@@ -74,7 +74,17 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         '{path, line?, endLine?}, path project-root-relative). Returns the new card id — use it with ' +
         'move_card/update_card/remove_card. Every write is shown to the human for confirmation ' +
         'before it lands; a card renders as passive content and never runs anything.',
-      inputSchema: z.object({ boardId, columnId, title, tag, assignee, ref, description, tags, fileRefs })
+      inputSchema: z.object({
+        boardId,
+        columnId,
+        title,
+        tag,
+        assignee,
+        ref,
+        description,
+        tags,
+        fileRefs
+      })
     },
     async (args) => {
       const { id } = await orchestrator.addCard(args.boardId, {
@@ -118,16 +128,16 @@ export function registerKanbanCards(server: McpServer, orchestrator: Orchestrato
         "{path, line?, endLine?}) REPLACES the card's file references; description sets the modal " +
         'body. cardId is the id returned by add_card. Human-confirmed before it lands.',
       inputSchema: z.object({
-              boardId,
-              cardId,
-              title: title.optional(),
-              tag,
-              assignee,
-              ref,
-              description,
-              tags,
-              fileRefs
-            })
+        boardId,
+        cardId,
+        title: title.optional(),
+        tag,
+        assignee,
+        ref,
+        description,
+        tags,
+        fileRefs
+      })
     },
     async (args) => {
       await orchestrator.updateCard(args.boardId, args.cardId, {
