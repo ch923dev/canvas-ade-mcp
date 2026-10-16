@@ -93,6 +93,35 @@ export {
   MAX_DIAGRAM_SPEC_BYTES,
   MAX_SPEC_OPS
 } from './constants'
+// The remaining wire caps that MIRROR a host clamp — exported for the same cross-repo parity test
+// (0.26.0). Each one is documented in constants.ts as a mirror of a named host constant; until now
+// the host could only copy the number, so a drift on either side was silent. Purely additive.
+export {
+  // write_result ↔ host mcpOrchestrator.ts WRITE_RESULT_MAX_*
+  WRITE_RESULT_MAX_SUMMARY,
+  WRITE_RESULT_MAX_REFS,
+  WRITE_RESULT_MAX_REF_LEN,
+  // spawn_board ↔ host mcpLifecycle.ts (title clamp, the shared 400-char SPAWN_LAUNCH_MAX, url)
+  SPAWN_BOARD_MAX_TITLE,
+  SPAWN_BOARD_MAX_PROMPT,
+  SPAWN_BOARD_MAX_URL,
+  // spawn_group ↔ host mcpLifecycle.ts SPAWN_GROUP_MAX_NAME / SPAWN_LAUNCH_MAX
+  SPAWN_GROUP_MAX_NAME,
+  SPAWN_GROUP_MAX_LAUNCH,
+  // relay_prompts batch size (the host re-caps the batch authoritatively)
+  MAX_RELAY_BATCH,
+  // visualize_plan ↔ host mcpVisualize.ts MAX_PLAN_*
+  MAX_PLAN_ITEMS,
+  MAX_PLAN_ITEM_TITLE,
+  MAX_PLAN_ITEM_STATUS,
+  MAX_PLAN_ITEM_TAG,
+  MAX_PLAN_ITEM_ASSIGNEE,
+  MAX_PLAN_ITEM_NOTE,
+  MAX_PLAN_TITLE,
+  // canvas://board/{id}/cards read projection ↔ host boardRegistry.ts local copies
+  MAX_KANBAN_COLUMNS,
+  MAX_KANBAN_CARDS
+} from './constants'
 export type { Tier, Scope, AuthRow, BoardId } from './types'
 // Prompts substrate (W1-F) — the in-package "skills" foundation. `registerPrompts`
 // stays internal (called only by ServerFactory); the registry + types are public so
