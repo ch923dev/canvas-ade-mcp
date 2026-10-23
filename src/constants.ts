@@ -283,30 +283,76 @@ export const MAX_PLAN_ITEM_NOTE = 2000
 export const MAX_PLAN_TITLE = 200
 
 /**
- * Canvas TIDY tool (P2) — orchestrator-tier only, UN-GATED. Repositions the whole canvas into a
- * clean, non-overlapping arrangement via the app's already-built deterministic packer (`tidyLayout`
- * + `canvasStore.tidyBoards`). Content-less (it only moves boards that already exist — never resizes,
- * creates, or deletes one) and fully reversible in ONE Ctrl+Z, so — like `spawn_group` — it carries
- * no exec vector and is NOT human-gated (the write-time confirm stays on content writes). Orchestrator-
- * tier: rearranging everyone's boards is an orchestrator-scope act, not a single connected worker's.
+ * Canvas TIDY tool (P2, widened 0.27.0 / spatial-awareness C6). Arranges the canvas to fit the user's
+ * screen via the app's deterministic packers. Registered for the orchestrator, lead and connected tiers
+ * (D1). The ORCHESTRATOR tier stays UN-GATED host-side; a lead/connected call carries the caller's
+ * token-derived `sourceBoardId` and the HOST raises ONE approve/deny confirm before it applies. Always
+ * ONE undo step. Positions only, EXCEPT `tile` and `overflow:'shrink'` (resize to fill / to stay
+ * readable) and `roles` (resizes FLEXIBLE boards by class — D7). Never creates or deletes a board.
  */
 export const TOOL_TIDY_CANVAS = 'tidy_canvas'
 
 /**
- * The tidy MODES an agent may pick — 1:1 with the app's `TidyMode`: `smart` (link-aware, the default),
- * `by-type` (terminals | browsers | planning columns), `grid` (shelf bin-pack). This IS the
- * "orientation" the epic folded into "a mode the agent picks". An off-enum value is rejected at the
- * Zod layer; the host applier also re-validates and falls back to `smart` (defence in depth).
+ * The tidy MODES an agent may pick — 1:1 with the app's `TidyMode` (C5). An OMITTED mode is NOT
+ * defaulted by the package (D8 a): the host reads `undefined` as an IMPLICIT `roles` (a unit of plain
+ * shells keeps its sizes) and must be able to tell it from an explicit `mode:'roles'`, which never
+ * falls back. `fit` = keep groups together, positions only, fit the pane; `roles` = role-aware stage
+ * (lead/browser hero, linked boards beside it); `smart` / `by-type` / `grid` = the legacy packers;
+ * `tile` = a resize-to-fill tile template ({@link TILE_TEMPLATES}, required with this mode only). An
+ * off-enum value is rejected at the Zod layer; the host applier re-validates (defence in depth).
  */
-export const TIDY_MODES = ['smart', 'by-type', 'grid'] as const
+export const TIDY_MODES = ['fit', 'roles', 'smart', 'by-type', 'grid', 'tile'] as const
+
+/** The tile templates `tidy_canvas` accepts with `mode:'tile'` (and ONLY with it) — 1:1 with the
+ *  app's `layoutPresets.ts` tile presets. */
+export const TILE_TEMPLATES = ['cols-2', 'cols-3', 'cols-4', 'main-sidebar', 'grid'] as const
 
 /**
- * Camera FOCUS tool (H1 / Lane H) — orchestrator-tier only, UN-GATED. Moves the user's VIEWPORT
- * (never a board): fit the camera to one board, one Named Group, or the whole canvas, via the
- * host's existing renderer camera verbs (`focusBoardById` / `fitGroup` / `fitAll`). Content-less +
- * viewport-only — it repositions nothing and is trivially reversible by scrolling — so, like
- * `tidy_canvas`, it is NOT human-gated. Orchestrator-tier: yanking the user's camera is an
- * app-level helper act (the Jarvis/command-board scope), not a connected worker's.
+ * What `tidy_canvas` does when the arrangement cannot be readable on one screen (D4). `report` (the
+ * host default): arrange, refit, return `readable:false`. `pages`: cut units into screen-sized pages
+ * laid left→right. `shrink`: scale boards down toward the minimum size until readable — the only fit
+ * overflow that resizes.
+ */
+export const TIDY_OVERFLOW = ['report', 'pages', 'shrink'] as const
+
+/**
+ * Named Group tools (C6 / D2 / D6) — orchestrator, lead and connected tiers; worker never. Groups are
+ * the user's own persisted structure, so EVERY call (every tier) is human BATCH-confirmed host-side:
+ * one modal, one row per proposed group / op, and the approved rows apply as ONE undo step. Grouping
+ * only draws an outline — no board moves. `group_boards` creates groups over EXISTING boards (the gap
+ * `spawn_group` leaves: it only groups boards it creates); `edit_groups` renames / adds / removes /
+ * ungroups. Both are OPTIONAL host methods — a host that has not wired one does not get the tool.
+ */
+export const TOOL_GROUP_BOARDS = 'group_boards'
+export const TOOL_EDIT_GROUPS = 'edit_groups'
+
+/** Rows per ONE `group_boards` / `edit_groups` call — a reviewability bound on the batch confirm
+ *  (the {@link MAX_RELAY_BATCH} precedent). The host re-caps authoritatively. */
+export const MAX_GROUP_BATCH = 10
+
+/** Max board ids in one group row / one `add` / `remove` op. The host re-caps authoritatively. */
+export const MAX_GROUP_MEMBERS = 50
+
+/**
+ * Max chars for a Named Group name on the wire. MUST equal {@link SPAWN_GROUP_MAX_NAME} (one group
+ * name, two tools) and the host's `GROUP_NAME_MAX` in `src/shared/groupName.ts` (`sanitizeGroupName`
+ * clamps to it). The host re-sanitizes (control / bidi / zero-width strip) + re-clamps.
+ */
+export const GROUP_NAME_MAX = 80
+
+/**
+ * Max derived contexts `canvas://contexts` carries — the host's `deriveContexts` cap (C3). The package
+ * only serializes the host's digest; exported so the host parity test pins the two together.
+ */
+export const MAX_CONTEXTS = 50
+
+/**
+ * Camera FOCUS tool (H1 / Lane H). Moves the user's VIEWPORT (never a board): fit the camera to one
+ * board, one Named Group, or the whole canvas, via the host's existing renderer camera verbs
+ * (`focusBoardById` / `fitGroup` / `fitAll`). Content-less + viewport-only. Registered for the
+ * orchestrator, lead and connected tiers (D1): the orchestrator tier stays UN-GATED host-side; a
+ * lead/connected call carries the caller's token-derived `sourceBoardId` and the HOST raises ONE
+ * approve/deny confirm before the camera moves.
  */
 export const TOOL_FOCUS_VIEWPORT = 'focus_viewport'
 

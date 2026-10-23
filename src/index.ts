@@ -47,7 +47,17 @@ export type {
   Visualization,
   VisualizePlanSpec,
   SpawnGroupInput,
-  SpawnGroupResult
+  SpawnGroupResult,
+  // C6 spatial awareness (0.27.0)
+  TidyMode,
+  TileTemplate,
+  TidyOverflow,
+  TidyScope,
+  TidyCanvasInput,
+  GroupEditOp,
+  GroupBoardsRow,
+  GroupBoardsInput,
+  EditGroupsInput
 } from './orchestrator/Orchestrator'
 export { MAX_OUTPUT_PAGE } from './constants'
 // Kanban card write caps — exported so the HOST (expanse-desktop) can assert its authoritative caps
@@ -122,6 +132,24 @@ export {
   MAX_KANBAN_COLUMNS,
   MAX_KANBAN_CARDS
 } from './constants'
+// C6 spatial-awareness wire (0.27.0) — the vocabularies + caps the host's parity test pins against
+// its own (`src/shared/mcpTypes.ts` TidyMode / TileTemplate / FitOverflow, `src/shared/groupName.ts`
+// GROUP_NAME_MAX, `src/shared/deriveContexts.ts` MAX_CONTEXTS, `mcpGroups.ts` batch caps).
+export {
+  TOOL_TIDY_CANVAS,
+  TOOL_FOCUS_VIEWPORT,
+  TOOL_GROUP_BOARDS,
+  TOOL_EDIT_GROUPS,
+  TIDY_MODES,
+  TILE_TEMPLATES,
+  TIDY_OVERFLOW,
+  MAX_GROUP_BATCH,
+  MAX_GROUP_MEMBERS,
+  GROUP_NAME_MAX,
+  MAX_CONTEXTS,
+  MAX_FOCUS_TARGET_ID
+} from './constants'
+export { CONTEXTS_URI } from './resources/contexts'
 // Structured tool errors (0.26.0). The HOST throws `CanvasToolError(code, message)` from an
 // Orchestrator method to classify a failure; every failed tool result carries
 // `structuredContent.error.code` from the closed `TOOL_ERROR_CODES` vocabulary alongside the

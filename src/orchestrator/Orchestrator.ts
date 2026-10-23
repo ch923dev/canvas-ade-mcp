@@ -1,5 +1,6 @@
 import type { BoardId } from '../types'
 import type { ToolErrorCode } from '../server/toolErrors'
+import type { TIDY_MODES, TIDY_OVERFLOW, TILE_TEMPLATES } from '../constants'
 
 /** Minimal board projection exposed to agents. */
 export interface BoardSummary {
@@ -436,6 +437,78 @@ export interface SpawnGroupResult {
   browserId?: BoardId
 }
 
+/** A `tidy_canvas` mode (C5 `TidyMode`) — the {@link TIDY_MODES} vocabulary. */
+export type TidyMode = (typeof TIDY_MODES)[number]
+/** A `tidy_canvas` tile template, valid with `mode:'tile'` only — the {@link TILE_TEMPLATES} vocabulary. */
+export type TileTemplate = (typeof TILE_TEMPLATES)[number]
+/** A `tidy_canvas` overflow policy (D4) — the {@link TIDY_OVERFLOW} vocabulary. */
+export type TidyOverflow = (typeof TIDY_OVERFLOW)[number]
+/** What a `tidy_canvas` call arranges (C5 `TidyScope`): the whole canvas, what is on screen, or one group. */
+export type TidyScope = 'all' | 'visible' | { groupId: string }
+
+/**
+ * The `tidy_canvas` input the tool forwards to {@link Orchestrator.tidyCanvas} (C6). Every field is
+ * optional, so a pre-0.27 host that reads only `mode` keeps working; the host applier re-validates all
+ * of it against the live canvas (C5 defence in depth).
+ */
+export interface TidyCanvasInput {
+  /**
+   * 🔒 D8 (a): NEVER defaulted by the package. `undefined` means the agent omitted it, which the host
+   * resolves to an IMPLICIT `roles` (a unit of plain shells keeps its sizes); an explicit `'roles'`
+   * never falls back. Collapsing the two would erase that distinction.
+   */
+  mode?: TidyMode
+  /** Present iff `mode === 'tile'` (the wire rejects it with any other mode, and requires it with tile). */
+  template?: TileTemplate
+  /** Absent ⇒ the whole canvas. */
+  scope?: TidyScope
+  /** Absent ⇒ the host default `report` (D4). */
+  overflow?: TidyOverflow
+  /** Reframe the camera on the result. Absent ⇒ true (the host default). */
+  fit?: boolean
+  /** Roles only (explicit `'roles'` or an omitted mode): force this board as the hero (S14). */
+  primary?: BoardId
+  /** Roles only: `false` keeps the role ORDER but resizes nothing (D7). Absent ⇒ true. */
+  resize?: boolean
+  /**
+   * 🔒 The token-derived board id of a LEAD / CONNECTED caller — set by the TOOL from `SessionCtx`,
+   * never client input. The host raises its D1 confirm when it is present. Absent on orchestrator-tier
+   * calls, which stay un-gated.
+   */
+  sourceBoardId?: BoardId
+}
+
+/**
+ * One op in an `edit_groups` batch (C5 `GroupEditOp`), discriminated on `op`. Every op targets an
+ * EXISTING Named Group by id (from `canvas://layout` / `canvas://contexts`); the host validates each
+ * one against the live canvas and rejects that row alone when it does not apply.
+ */
+export type GroupEditOp =
+  | { op: 'rename'; groupId: string; name: string }
+  | { op: 'add'; groupId: string; boardIds: BoardId[] }
+  | { op: 'remove'; groupId: string; boardIds: BoardId[] }
+  | { op: 'ungroup'; groupId: string }
+
+/** One proposed group in a `group_boards` batch — a name over EXISTING board ids. */
+export interface GroupBoardsRow {
+  name: string
+  boardIds: BoardId[]
+}
+
+/** The `group_boards` input forwarded to {@link Orchestrator.groupBoards}. */
+export interface GroupBoardsInput {
+  groups: GroupBoardsRow[]
+  /** 🔒 Lead / connected caller's token-derived board id (audit + routing); absent at orchestrator tier. */
+  sourceBoardId?: BoardId
+}
+
+/** The `edit_groups` input forwarded to {@link Orchestrator.editGroups}. */
+export interface EditGroupsInput {
+  ops: GroupEditOp[]
+  /** 🔒 Lead / connected caller's token-derived board id (audit + routing); absent at orchestrator tier. */
+  sourceBoardId?: BoardId
+}
+
 /** One dispatch in a `relay_prompts` BATCH — the same {source, target, text} triple as a single relay. */
 export interface RelayItem {
   sourceId: BoardId
@@ -684,6 +757,38 @@ export interface Orchestrator {
    */
   describeLayout(): Promise<unknown>
   /**
+   * Assemble the read-only CONTEXT digest (C6, `canvas://contexts`) — the host's `deriveContexts`
+   * over the live mirror: `{ version: 1, contexts: DerivedContext[], ungrouped: string[] }`, where a
+   * context is a set of boards that belong together (an existing Named Group, or a proposal built
+   * from preview / cable / port / data-flow / cwd / file-ref signals) and `ungrouped` lists the
+   * boards in no Named Group. Orchestrator / lead / connected tiers. Typed `unknown`: the shape is
+   * host-owned and the resource only serializes it (the {@link Orchestrator.describeLayout} pattern).
+   *
+   * OPTIONAL so an older host keeps compiling. When it is missing the resource is NOT registered and
+   * the package logs one `console.warn` per server build, so a host that forgot to forward it is
+   * visible rather than silently missing a surface (the `publish_findings` lesson).
+   */
+  describeContexts?(): Promise<unknown>
+  /**
+   * 🔒 Create Named Groups over EXISTING boards (C6 `group_boards`, D2). Every call — every tier — is
+   * human BATCH-confirmed host-side: ONE modal, one row per proposed group; approved rows apply as ONE
+   * undo step. Grouping only draws an outline (no board moves). The host validates each row's ids
+   * against the live mirror (unknown / docked ⇒ that row `rejected`) and sanitizes the name. Resolves
+   * a per-row array `{ status: 'created' | 'denied' | 'rejected', groupId?, detail? }`, positionally
+   * 1:1 with `input.groups` — host-owned, typed `unknown`, serialized by the tool.
+   *
+   * OPTIONAL (old hosts compile); when missing the tool is not registered and one `console.warn` fires
+   * per server build.
+   */
+  groupBoards?(input: GroupBoardsInput): Promise<unknown>
+  /**
+   * 🔒 Rename / add to / remove from / ungroup EXISTING Named Groups (C6 `edit_groups`, D2). Same gate
+   * as {@link Orchestrator.groupBoards}: one batch confirm, one row per op, approved rows = ONE undo
+   * step. Resolves a per-op array `{ status: 'applied' | 'denied' | 'rejected', detail? }`, 1:1 with
+   * `input.ops` — host-owned, typed `unknown`. OPTIONAL, with the same warn-on-skip.
+   */
+  editGroups?(input: EditGroupsInput): Promise<unknown>
+  /**
    * 🔒 Spawn a feature-zone CLUSTER (C2-wire / PR-5c) — a terminal board (always) plus an optional
    * planning + browser member, grouped under a Named Group, in ONE cap-checked step. Orchestrator-
    * tier only (bounds swarm growth). Content-less (empty boards), so it is cap-checked, NOT human-
@@ -692,28 +797,38 @@ export interface Orchestrator {
    */
   spawnGroup(input: SpawnGroupInput): Promise<SpawnGroupResult>
   /**
-   * 🔒 Tidy the whole canvas (P2) — reposition every board into a clean, non-overlapping arrangement
-   * via the host's deterministic packer (`tidyLayout` + `canvasStore.tidyBoards`). Orchestrator-tier
-   * only. Content-less + reposition-only (it MOVES boards that already exist; never resizes, creates,
-   * or deletes one), so it is NOT human-gated — the write-time confirm stays on content writes — and it
-   * is fully reversible in ONE host undo step. `mode` picks the arrangement ('smart' | 'by-type' |
-   * 'grid'; absent ⇒ 'smart'). Typed `unknown` return here: the `{ moved }` shape is host-owned (the
-   * package does not model it), mirroring `describeApp` / `describeLayout`; the tool serializes it as
-   * JSON. `moved` is the count of boards whose position changed (0 ⇒ the canvas was already tidy).
+   * 🔒 Arrange the canvas to fit the user's screen (P2, widened 0.27.0 / C6) via the host's
+   * deterministic packers. ONE host undo step. Positions only, except `mode:'tile'` and
+   * `overflow:'shrink'` (resize) and `roles` (resizes FLEXIBLE boards by class, D7); never creates or
+   * deletes a board. See {@link TidyCanvasInput} for every field — in particular an omitted `mode`
+   * arrives `undefined` (D8 a: the host's IMPLICIT `roles`), never a package-filled default.
+   *
+   * Gate (D1): `input.sourceBoardId` present ⇒ a lead / connected caller ⇒ the host raises ONE
+   * approve/deny confirm first; absent ⇒ the orchestrator tier, un-gated as before.
+   *
+   * Typed `unknown` return: the `{ moved, fitZoom, readable, pages?, units? }` shape is host-owned
+   * (`units` = `[{ scene, heroIds, why }]` for roles); the tool serializes it as JSON. Every new field
+   * is optional, so a pre-0.27 host implementing `tidyCanvas(input: { mode?: string })` still
+   * satisfies this signature.
    */
-  tidyCanvas(input: { mode?: string }): Promise<unknown>
+  tidyCanvas(input: TidyCanvasInput): Promise<unknown>
   /**
    * 🔒 Focus the user's VIEWPORT (H1 / Lane H) — fit the camera to one board (`boardId`), one
-   * Named Group (`groupId`), or the whole canvas (neither; `fitAll`). Orchestrator-tier only
-   * (steering the user's camera is an app-level helper act). Content-less + viewport-only: no
-   * board is created, moved, resized, or deleted, so — like {@link Orchestrator.tidyCanvas} — it
-   * is NOT human-gated, and the user reverses it by scrolling. The host resolves the id against
-   * the live canvas and animates via its existing camera verbs (`focusBoardById` / `fitGroup` /
-   * `fitAll`); an unknown id rejects. Typed `unknown` return: the
-   * `{ focused: 'board' | 'group' | 'all', id? }` shape is host-owned (the package does not model
-   * it), mirroring `tidyCanvas` / `describeLayout`; the tool serializes it as JSON.
+   * Named Group (`groupId`), or the whole canvas (neither; `fitAll`). Content-less + viewport-only:
+   * no board is created, moved, resized, or deleted, and the user reverses it by scrolling. The host
+   * resolves the id against the live canvas and animates via its existing camera verbs
+   * (`focusBoardById` / `fitGroup` / `fitAll`); an unknown id rejects. Typed `unknown` return: the
+   * `{ focused: 'board' | 'group' | 'all', id? }` shape is host-owned, serialized by the tool.
+   *
+   * Gate (D1, 0.27.0): `sourceBoardId` is the token-derived id of a LEAD / CONNECTED caller (set by
+   * the tool, never client input) ⇒ the host raises ONE approve/deny confirm first; absent ⇒ the
+   * orchestrator tier, un-gated as before. Additive — an older host ignores it.
    */
-  focusViewport(input: { boardId?: BoardId; groupId?: string }): Promise<unknown>
+  focusViewport(input: {
+    boardId?: BoardId
+    groupId?: string
+    sourceBoardId?: BoardId
+  }): Promise<unknown>
   boardStatus(boardId: BoardId): Promise<string>
   /**
    * Read one KANBAN board's columns + cards (P3b, read-only) — the read half of the card loop, so an

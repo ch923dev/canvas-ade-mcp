@@ -48,6 +48,9 @@ describe('capability tier split', () => {
       expect(names).toContain(TOOL_SPAWN_BOARD)
       expect(names).toContain(TOOL_CONFIGURE_BOARD)
       expect(names).toContain(TOOL_WRITE_RESULT)
+      // C6 / D1 (0.27.0): the spatial tools, host-confirmed for this tier.
+      expect(names).toContain(TOOL_TIDY_CANVAS)
+      expect(names).toContain(TOOL_FOCUS_VIEWPORT)
       await client.close()
     })
 
@@ -63,13 +66,10 @@ describe('capability tier split', () => {
         TOOL_GIT_DIFF,
         // spawn_group is orchestrator-only (unlike spawn_board) — a connected agent must not grow
         // the swarm topology unaware (C2-wire invariant).
-        TOOL_SPAWN_GROUP,
-        // tidy_canvas is orchestrator-only too (P2) — a connected agent must not rearrange
-        // everyone else's boards.
-        TOOL_TIDY_CANVAS,
-        // focus_viewport is orchestrator-only (H1) — a connected agent must not yank the
-        // user's camera.
-        TOOL_FOCUS_VIEWPORT
+        TOOL_SPAWN_GROUP
+        // tidy_canvas / focus_viewport are NO LONGER omitted (0.27.0, spatial-awareness D1): a
+        // connected caller gets them, bound to its own board id so the host confirms first — see
+        // spatialSurface.contract.test.ts for the full per-tier matrix.
       ]) {
         expect(names).not.toContain(omitted)
       }

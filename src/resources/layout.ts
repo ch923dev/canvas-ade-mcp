@@ -8,10 +8,11 @@ import type { Orchestrator } from '../orchestrator/Orchestrator'
  * an orchestrator reads it to decide whether to tidy, which orientation to propose, and where a new
  * plan/Kanban should land in open space — reasoning over STRUCTURE instead of raw coordinates.
  *
- * ORCHESTRATOR-TIER: the CALLER (ServerFactory) gates this by only invoking `registerLayoutResource`
- * for the orchestrator tier, so it is absent from a worker/connected `resources/list` — the spatial
- * digest is planning fuel for an orchestrator, of no use to a single worker (the same structural
- * split as `canvas://app-model`, registered right beside it).
+ * ORCHESTRATOR + LEAD + CONNECTED tiers (D1, 0.27.0 — widened from orchestrator-only): the CALLER
+ * (ServerFactory) registers it in each of those tier blocks, beside `tidy_canvas` / `focus_viewport`,
+ * because an agent the user talks to must be able to see whether the canvas fits the screen before it
+ * proposes a tidy. A worker `resources/list` never contains it (structural split; `canvas://app-model`
+ * stays orchestrator-only).
  *
  * The handler is the thin transport: call {@link Orchestrator.describeLayout} (which wraps the host's
  * `buildLayoutDigest` over the loopback wire) and serialize the result as JSON — analogous to
@@ -25,7 +26,8 @@ export function registerLayoutResource(server: McpServer, orchestrator: Orchestr
     {
       description:
         'Read-only spatial digest of the canvas: bounding box, per-board geometry + group, ' +
-        'overlapping pairs, and a coarse row/column/grid/scattered arrangement. Orchestrator-tier.',
+        'overlapping pairs, and a coarse row/column/grid/scattered arrangement. Orchestrator, lead ' +
+        'and connected tiers.',
       mimeType: 'application/json'
     },
     async (uri) => ({
