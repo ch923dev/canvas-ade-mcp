@@ -69,7 +69,7 @@ export function registerGroupBoards(
     async (args) => {
       const result = await groupBoards.call(orchestrator, {
         groups: args.groups.map((g) => ({ name: g.name, boardIds: dedupeIds(g.boardIds) })),
-        ...callerSource(opts.ctx)
+        ...callerSource(opts.ctx, TOOL_GROUP_BOARDS)
       })
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
     }

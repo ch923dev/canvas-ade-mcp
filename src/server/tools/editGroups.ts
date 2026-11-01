@@ -78,7 +78,7 @@ export function registerEditGroups(
     async (args) => {
       const result = await editGroups.call(orchestrator, {
         ops: args.ops.map(normalizeOp),
-        ...callerSource(opts.ctx)
+        ...callerSource(opts.ctx, TOOL_EDIT_GROUPS)
       })
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
     }

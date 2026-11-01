@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { connectInMemory } from '../helpers/inMemory'
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import { ServerFactory } from '../../src/server/factory'
+import { resetWarnSkipped } from '../../src/server/tools/spatialShared'
 import {
   TOOL_EDIT_GROUPS,
   TOOL_FOCUS_VIEWPORT,
@@ -95,6 +96,8 @@ class NoDescribeContexts extends MockOrchestrator {
 describe('spatial surface — optional-method registration + exactly-one warn per missing method', () => {
   let warn: MockInstance<typeof console.warn>
   beforeEach(() => {
+    // The warn is once per PROCESS per surface, so each test starts from a clean slate.
+    resetWarnSkipped()
     warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
   afterEach(() => {
@@ -150,12 +153,48 @@ describe('spatial surface — optional-method registration + exactly-one warn pe
     }
   })
 
-  it('one warn per missing method PER SERVER BUILD (each getServer is its own build)', () => {
+  it('ONE warn per missing method PER PROCESS — later server builds stay quiet (0.27.1)', () => {
+    // Every MCP session is its own getServer. The warn used to repeat on each one: three lines per
+    // terminal session on a host that wired none of the optional methods.
     const factory = new ServerFactory(new NoGroupBoards())
     factory.getServer({ tier: 'orchestrator', scopes: [], boardId: 'app' }).dispose()
     expect(warn).toHaveBeenCalledTimes(1)
     factory.getServer({ tier: 'lead', scopes: [], boardId: 'lead-b' }).dispose()
+    factory.getServer({ tier: 'connected', scopes: [], boardId: 'term-b' }).dispose()
+    // A second factory over a second host in the same process is still the same process.
+    new ServerFactory(new NoGroupBoards())
+      .getServer({ tier: 'connected', scopes: [], boardId: 'term-c' })
+      .dispose()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warnings()[0]).toContain(TOOL_GROUP_BOARDS)
+  })
+
+  it('an unwired host across many sessions: exactly three warns in total, one per surface', () => {
+    const factory = new ServerFactory(new UnwiredOrchestrator())
+    for (let session = 0; session < 3; session++) {
+      for (const tier of SPATIAL_TIERS) {
+        factory.getServer({ tier, scopes: [], boardId: `${tier}-${session}` }).dispose()
+      }
+    }
+    expect(warn).toHaveBeenCalledTimes(3)
+    for (const method of ['groupBoards', 'editGroups', 'describeContexts']) {
+      expect(
+        warnings().filter((m) => m.includes(`${method}()`)),
+        method
+      ).toHaveLength(1)
+    }
+  })
+
+  it('the dedupe is per surface: a different missing method still gets its own warn', () => {
+    new ServerFactory(new NoGroupBoards())
+      .getServer({ tier: 'lead', scopes: [], boardId: 'lead-b' })
+      .dispose()
+    new ServerFactory(new NoEditGroups())
+      .getServer({ tier: 'lead', scopes: [], boardId: 'lead-b' })
+      .dispose()
     expect(warn).toHaveBeenCalledTimes(2)
+    expect(warnings()[0]).toContain(TOOL_GROUP_BOARDS)
+    expect(warnings()[1]).toContain(TOOL_EDIT_GROUPS)
   })
 
   it('worker: never checks the optional methods, so an unwired host raises NO warn', async () => {

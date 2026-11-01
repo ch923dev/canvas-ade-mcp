@@ -107,7 +107,10 @@ export function registerTidyCanvas(
     TOOL_TIDY_CANVAS,
     { description: DESCRIPTION, inputSchema: tidyCanvasInputSchema },
     async (args) => {
-      const result = await orchestrator.tidyCanvas({ ...args, ...callerSource(opts.ctx) })
+      const result = await orchestrator.tidyCanvas({
+        ...args,
+        ...callerSource(opts.ctx, TOOL_TIDY_CANVAS)
+      })
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
     }
   )

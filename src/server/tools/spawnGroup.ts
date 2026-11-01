@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import type { SessionCtx } from '../factory'
 import { SPAWN_GROUP_MAX_LAUNCH, SPAWN_GROUP_MAX_NAME, TOOL_SPAWN_GROUP } from '../../constants'
+import { callerSource } from './spatialShared'
 
 /**
  * Register the `spawn_group` tool (C2-wire / PR-5c) — spawn a feature-zone CLUSTER (a terminal board
@@ -53,10 +54,10 @@ export function registerSpawnGroup(
         // client input, so it cannot be forged — and the host creates a directed orchestration
         // connector lead→terminal-member alongside the cluster, authorizing follow-up
         // relay/assign dispatch into it (the spawn_board rc.6 discipline). Orchestrator-tier
-        // spawns pass nothing (the 'app' command board needs no cable).
-        ...(opts.ctx?.tier === 'lead' && opts.ctx.boardId
-          ? { sourceBoardId: opts.ctx.boardId }
-          : {})
+        // spawns pass nothing (the 'app' command board needs no cable). A lead session with no
+        // bound board is refused `unauthorized` (callerSource, 0.27.1). Connected never registers
+        // this tool, so the binding is lead-only in practice.
+        ...callerSource(opts.ctx, TOOL_SPAWN_GROUP)
       })
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
     }

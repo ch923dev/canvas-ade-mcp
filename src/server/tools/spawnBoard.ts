@@ -11,6 +11,7 @@ import {
 } from '../../constants'
 import { planningElementsArraySchema } from './addPlanningElements'
 import { toolErrorCodeOf, toolErrorResult } from '../toolErrors'
+import { callerSource } from './spatialShared'
 
 /**
  * Register the `spawn_board` lifecycle tool (T3.1) — the first WRITE tool. The
@@ -118,10 +119,9 @@ export function registerSpawnBoard(
         // forged — and the host creates a directed orchestration connector spawner→spawned
         // alongside the board, authorizing follow-up relay/assign dispatch into it.
         // Orchestrator-tier spawns pass nothing (the 'app' command board dispatches via
-        // assign/handoff, which need no cable).
-        ...((opts.ctx?.tier === 'connected' || opts.ctx?.tier === 'lead') && opts.ctx.boardId
-          ? { sourceBoardId: opts.ctx.boardId }
-          : {})
+        // assign/handoff, which need no cable). A connected/lead session with no bound board
+        // is refused `unauthorized` (callerSource, 0.27.1).
+        ...callerSource(opts.ctx, TOOL_SPAWN_BOARD)
       })
       // Apply the seed through the SAME confirmed write path as add_planning_elements. A
       // decline throws there → surface it as an isError result (the board still exists, just

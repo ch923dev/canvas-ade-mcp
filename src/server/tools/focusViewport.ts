@@ -52,7 +52,7 @@ export function registerFocusViewport(
       const result = await orchestrator.focusViewport({
         boardId: args.boardId,
         groupId: args.groupId,
-        ...callerSource(opts.ctx)
+        ...callerSource(opts.ctx, TOOL_FOCUS_VIEWPORT)
       })
       return { content: [{ type: 'text', text: JSON.stringify(result) }] }
     }

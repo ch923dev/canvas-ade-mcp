@@ -22,11 +22,18 @@ const DEFAULT_TTL_SECONDS = 365 * 24 * 60 * 60
  * Mint a crypto-random per-board bearer token, store it, and return token + row.
  * Scopes come from the tier (ADR 0002, D2). Always carries a board-lifetime
  * `expiresAt` (the SDK requires a numeric expiry); override with `ttlSeconds`.
+ *
+ * 🔒 Throws on an empty `boardId` (0.27.1): every own-board binding keys off it, and a
+ * board-less token is never a valid mint. The tools also refuse an unbound session, so
+ * this is the first of two fail-closed layers.
  */
 export function mintBoardToken(
   store: TokenStore,
   input: { boardId: BoardId; tier: Tier; ttlSeconds?: number }
 ): MintedToken {
+  if (typeof input.boardId !== 'string' || input.boardId.length === 0) {
+    throw new TypeError('mintBoardToken: boardId must be a non-empty string')
+  }
   const token = randomBytes(32).toString('hex')
   const ttl = input.ttlSeconds ?? DEFAULT_TTL_SECONDS
   const row: AuthRow = {

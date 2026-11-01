@@ -13,6 +13,7 @@ import {
   TOOL_VISUALIZE_PLAN,
   VISUALIZATIONS
 } from '../../constants'
+import { callerSource } from './spatialShared'
 
 /**
  * Schema for ONE plan item (P5). Only `title` is required; the chips + note are optional. Lengths are
@@ -71,10 +72,9 @@ export function registerVisualizePlan(
         // and the host resolves the CALLER'S project from it, routing the new board there instead
         // of whichever project is foregrounded (the spawn_board auto-cable discipline).
         // Orchestrator-tier calls pass nothing (the 'app' command board acts on the active
-        // project by design).
-        ...((opts.ctx?.tier === 'connected' || opts.ctx?.tier === 'lead') && opts.ctx.boardId
-          ? { sourceBoardId: opts.ctx.boardId }
-          : {})
+        // project by design). A connected/lead session with no bound board is refused
+        // `unauthorized` (callerSource, 0.27.1).
+        ...callerSource(opts.ctx, TOOL_VISUALIZE_PLAN)
       })
       return {
         content: [
