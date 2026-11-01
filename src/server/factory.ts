@@ -23,6 +23,7 @@ import { registerInterrupt } from './tools/interrupt'
 import { registerGitDiff } from './tools/gitDiff'
 import { registerSpawnGroup } from './tools/spawnGroup'
 import { registerTidyCanvas } from './tools/tidyCanvas'
+import { registerArrangeMainBoard } from './tools/arrangeMainBoard'
 import { registerFocusViewport } from './tools/focusViewport'
 import { registerGroupBoards } from './tools/groupBoards'
 import { registerEditGroups } from './tools/editGroups'
@@ -52,13 +53,14 @@ const SERVER_INFO = { name: 'canvas-ade-mcp', version }
  * calls this, so none of it ever appears in a worker's `tools/list` / `resources/list`.
  *
  * - `canvas://layout` + `canvas://contexts` — read-only.
- * - `tidy_canvas` + `focus_viewport` — the tool binds a lead/connected caller's own token-derived
- *   board id as `sourceBoardId`, and the HOST raises one approve/deny confirm when it is present; an
- *   orchestrator caller binds none and stays un-gated.
+ * - `tidy_canvas` + `arrange_main_board` (0.28.0) + `focus_viewport` — the tool binds a
+ *   lead/connected caller's own token-derived board id as `sourceBoardId`, and the HOST raises one
+ *   approve/deny confirm when it is present; an orchestrator caller binds none and stays un-gated.
  * - `group_boards` + `edit_groups` — human batch-confirmed host-side for EVERY tier (D2).
  *
- * `canvas://contexts`, `group_boards` and `edit_groups` sit on OPTIONAL Orchestrator methods: each is
- * skipped — with one `console.warn` — when the host has not wired its method.
+ * `arrange_main_board`, `canvas://contexts`, `group_boards` and `edit_groups` sit on OPTIONAL
+ * Orchestrator methods: each is skipped — with one `console.warn` — when the host has not wired its
+ * method.
  */
 function registerSpatialSurface(
   server: McpServer,
@@ -66,6 +68,7 @@ function registerSpatialSurface(
   ctx: SessionCtx
 ): void {
   registerTidyCanvas(server, orchestrator, { ctx })
+  registerArrangeMainBoard(server, orchestrator, { ctx })
   registerFocusViewport(server, orchestrator, { ctx })
   registerGroupBoards(server, orchestrator, { ctx })
   registerEditGroups(server, orchestrator, { ctx })

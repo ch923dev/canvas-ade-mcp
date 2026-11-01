@@ -106,3 +106,23 @@ describe('package root exports the C6 spatial wire (0.27.0)', () => {
     expect(pkg.MAX_FOCUS_TARGET_ID).toBe(200)
   })
 })
+
+// arrange_main_board (0.28.0) — the main + sidebar intent tool. The host pins its side vocabulary
+// against MAIN_SIDES by name on the root, so pin the name, the identity and the literal values here.
+describe('package root exports the arrange_main_board wire (0.28.0)', () => {
+  it('the tool name is exported', () => {
+    expect(pkg.TOOL_ARRANGE_MAIN_BOARD).toBe('arrange_main_board')
+    expect(pkg.TOOL_ARRANGE_MAIN_BOARD).toBe(constants.TOOL_ARRANGE_MAIN_BOARD)
+  })
+
+  it('MAIN_SIDES is exported verbatim', () => {
+    expect(pkg.MAIN_SIDES).toBe(constants.MAIN_SIDES)
+    expect([...pkg.MAIN_SIDES]).toEqual(['auto', 'right', 'left', 'bottom', 'top'])
+  })
+
+  it('MainSide / ArrangeMainBoardInput are exported types (compile-time pin)', () => {
+    const side: pkg.MainSide = 'auto'
+    const input: pkg.ArrangeMainBoardInput = { boardId: 'b', side, scope: 'all', fit: true }
+    expect(input.side).toBe('auto')
+  })
+})

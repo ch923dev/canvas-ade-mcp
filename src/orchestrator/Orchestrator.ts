@@ -1,6 +1,6 @@
 import type { BoardId } from '../types'
 import type { ToolErrorCode } from '../server/toolErrors'
-import type { TIDY_MODES, TIDY_OVERFLOW, TILE_TEMPLATES } from '../constants'
+import type { MainSide, TIDY_MODES, TIDY_OVERFLOW, TILE_TEMPLATES } from '../constants'
 
 /** Minimal board projection exposed to agents. */
 export interface BoardSummary {
@@ -466,7 +466,11 @@ export interface TidyCanvasInput {
   overflow?: TidyOverflow
   /** Reframe the camera on the result. Absent ⇒ true (the host default). */
   fit?: boolean
-  /** Roles only (explicit `'roles'` or an omitted mode): force this board as the hero (S14). */
+  /**
+   * Roles only (explicit `'roles'` or an omitted mode): this board becomes the MAIN board and every
+   * other in-scope board its sidebar (S14). The dedicated intent tool for that is `arrange_main_board`
+   * ({@link ArrangeMainBoardInput}), which the host maps onto this same field.
+   */
   primary?: BoardId
   /** Roles only: `false` keeps the role ORDER but resizes nothing (D7). Absent ⇒ true. */
   resize?: boolean
@@ -474,6 +478,29 @@ export interface TidyCanvasInput {
    * 🔒 The token-derived board id of a LEAD / CONNECTED caller — set by the TOOL from `SessionCtx`,
    * never client input. The host raises its D1 confirm when it is present. Absent on orchestrator-tier
    * calls, which stay un-gated.
+   */
+  sourceBoardId?: BoardId
+}
+
+/**
+ * The `arrange_main_board` input the tool forwards to {@link Orchestrator.arrangeMainBoard} (0.28.0):
+ * make ONE board the MAIN board and every other in-scope board its sidebar. The host maps it onto its
+ * tidy engine with `primary = boardId` and re-validates every field against the live canvas.
+ * Optional fields are NEVER defaulted by the package — absent means the host default.
+ */
+export interface ArrangeMainBoardInput {
+  /** The board that takes the main slot (an id from `canvas://boards` / `canvas://layout`). */
+  boardId: BoardId
+  /** Where the sidebar goes. Absent ⇒ the host's `auto` (right on a wide screen, below on a tall one). */
+  side?: MainSide
+  /** Which boards take part. Absent ⇒ the whole canvas (workers docked in a swarm board excepted). */
+  scope?: TidyScope
+  /** Reframe the camera on the result. Absent ⇒ true (the host default). */
+  fit?: boolean
+  /**
+   * 🔒 The token-derived board id of a LEAD / CONNECTED caller — set by the TOOL from `SessionCtx`,
+   * never client input. The host raises ONE D1 approve/deny confirm when it is present. Absent on
+   * orchestrator-tier calls, which stay un-gated.
    */
   sourceBoardId?: BoardId
 }
@@ -812,6 +839,24 @@ export interface Orchestrator {
    * satisfies this signature.
    */
   tidyCanvas(input: TidyCanvasInput): Promise<unknown>
+  /**
+   * 🔒 Make ONE board the MAIN board and every other in-scope board its sidebar (0.28.0,
+   * `arrange_main_board`) — the dedicated intent tool for what `tidyCanvas`'s `primary` expresses. The
+   * host maps it onto its tidy engine with `primary = input.boardId`: one main + sidebar arrangement
+   * fitted to the user's screen, ONE undo step, nothing created or deleted. See
+   * {@link ArrangeMainBoardInput} for every field.
+   *
+   * Gate (D1): `input.sourceBoardId` present ⇒ a lead / connected caller ⇒ the host raises ONE
+   * approve/deny confirm first; absent ⇒ the orchestrator tier, un-gated (the same rule as
+   * {@link Orchestrator.tidyCanvas}).
+   *
+   * Typed `unknown` return: the `{ moved, fitZoom, readable, units? }` shape is host-owned; the tool
+   * serializes it as JSON.
+   *
+   * OPTIONAL so an older host keeps compiling. When it is missing the tool is NOT registered and the
+   * package logs one `console.warn` per process (the `groupBoards` warn-on-skip).
+   */
+  arrangeMainBoard?(input: ArrangeMainBoardInput): Promise<unknown>
   /**
    * 🔒 Focus the user's VIEWPORT (H1 / Lane H) — fit the camera to one board (`boardId`), one
    * Named Group (`groupId`), or the whole canvas (neither; `fitAll`). Content-less + viewport-only:

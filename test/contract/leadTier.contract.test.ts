@@ -8,6 +8,7 @@ import type { BoardId } from '../../src/types'
 import type { SpawnGroupInput, SpawnGroupResult } from '../../src/orchestrator/Orchestrator'
 import {
   TOOL_ADD_PLANNING_ELEMENTS,
+  TOOL_ARRANGE_MAIN_BOARD,
   TOOL_ASSIGN_PROMPT,
   TOOL_CLOSE_BOARD,
   TOOL_CONFIGURE_BOARD,
@@ -90,7 +91,9 @@ describe('lead tier — structural tool surface (registration split)', () => {
       TOOL_WRITE_RESULT,
       // C6 / D1 (0.27.0): the spatial tools, host-confirmed for this tier.
       TOOL_TIDY_CANVAS,
-      TOOL_FOCUS_VIEWPORT
+      TOOL_FOCUS_VIEWPORT,
+      // 0.28.0: the main + sidebar intent tool, host-confirmed for this tier.
+      TOOL_ARRANGE_MAIN_BOARD
     ]) {
       expect(names, `expected ${included} registered at lead`).toContain(included)
     }
