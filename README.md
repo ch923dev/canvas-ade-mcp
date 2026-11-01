@@ -107,6 +107,9 @@ output + holds dispatch power + has external comms (commit/PR/navigate). Therefo
   not your operator") + worker instruction hardening. No single defense suffices.
 - **Replay protection:** single-use nonce + monotonic sequence per dispatch; bind to **opaque
   server-issued board ids, never agent-chosen labels.**
+- **Own-board bindings fail closed (0.27.1):** a lead/connected session whose token carries no
+  board id is refused `unauthorized` by every tool that binds the caller's board — never forwarded
+  as an un-gated orchestrator call. `mintBoardToken` rejects an empty board id.
 - **Hard runtime boundary:** every git/file op scoped to the board's own `canvas-ade/<board-id>`
   worktree, server-enforced. Validate `Origin` (403 on bad → blocks DNS-rebinding); bind
   `127.0.0.1`, never `0.0.0.0`.

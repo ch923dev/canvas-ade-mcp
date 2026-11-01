@@ -69,6 +69,8 @@ export function ctxFromAuth(auth: AuthInfo | undefined): SessionCtx {
         : extra.tier === 'lead'
           ? 'lead'
           : 'worker'
+  // '' = no board bound. Every own-board binding refuses it as `unauthorized` (write_result,
+  // callerSource, the relay source checks); mintBoardToken never issues one.
   const boardId = typeof extra.boardId === 'string' ? extra.boardId : ''
   return { tier, scopes: auth?.scopes ?? [], boardId }
 }

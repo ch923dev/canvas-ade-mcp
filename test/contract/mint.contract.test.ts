@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { TokenStore } from '../../src/auth/tokens'
 import { mintBoardToken } from '../../src/auth/mint'
 import { SCOPE_READ } from '../../src/auth/scopes'
@@ -28,6 +28,17 @@ describe('mintBoardToken', () => {
     const store = new TokenStore()
     const { row } = mintBoardToken(store, { boardId: 'b', tier: 'orchestrator' })
     expect(row.scopes).toContain('dispatch')
+  })
+
+  it('🔒 an empty boardId is refused at mint, for every tier, and nothing is stored', () => {
+    for (const tier of ['orchestrator', 'lead', 'connected', 'worker'] as const) {
+      const store = new TokenStore()
+      const stored = vi.spyOn(store, 'mint')
+      expect(() => mintBoardToken(store, { boardId: '', tier }), tier).toThrow(
+        'mintBoardToken: boardId must be a non-empty string'
+      )
+      expect(stored, tier).not.toHaveBeenCalled()
+    }
   })
 
   it('ttlSeconds overrides the default expiresAt', () => {

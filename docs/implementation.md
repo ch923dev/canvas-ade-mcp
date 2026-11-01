@@ -7,9 +7,12 @@ Phase 0 actually shipped — all five gates green.
 
 ## Stack (as installed)
 
-- **Runtime:** MCP SDK v2 split packages `@modelcontextprotocol/{server,node,express,core}@2.0.0`
-  (ADR 0004; classic stateful transport, stateless core NOT adopted), `express@5.2.1`, `zod@4.4.3`.
-  `@modelcontextprotocol/sdk@1.29` remains a devDependency solely for the v1-client back-compat
+- **Runtime:** MCP SDK v2 split packages — `@modelcontextprotocol/server` + `core` `^2.4.0`,
+  `node` `^2.1.2`, `express` `^2.0.2` (ADR 0004; classic stateful transport, stateless core NOT
+  adopted) — plus `express@^5.3.0`, `zod@^4.6.7`. Caret ranges since 0.27.1: the 0.25–0.27
+  exact `2.0.0` pins left consumers unable to float to the SDK's security patches.
+  `@modelcontextprotocol/client` is a devDependency (test-suite client; `dist/` never imports it).
+  `@modelcontextprotocol/sdk@^1.32` remains a devDependency solely for the v1-client back-compat
   lane (`test/live/v1ClientCompat.live.test.ts`).
 - **Toolchain:** `typescript@6.0.3`, `tsup@8` (build), `vitest@4` (test), `eslint@10` flat +
   `typescript-eslint@8` + `prettier@3`. pnpm 9.15.

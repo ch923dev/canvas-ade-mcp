@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/server'
-import pkg from '../../package.json' with { type: 'json' }
+import { version } from '../../package.json'
 import type { BoardId, Scope, Tier } from '../types'
 import type { Orchestrator } from '../orchestrator/Orchestrator'
 import { TOOL_ORCHESTRATOR_PING, TOOL_PING } from '../constants'
@@ -41,8 +41,10 @@ export interface SessionCtx {
 }
 
 // Version is sourced from package.json so the handshake never drifts from the
-// published version (clients log/compat-check serverInfo.version).
-const SERVER_INFO = { name: 'canvas-ade-mcp', version: pkg.version }
+// published version (clients log/compat-check serverInfo.version). A NAMED import, so the
+// bundle inlines only `version`, not the whole manifest (scripts, devDependencies). It
+// carries no `with { type: 'json' }`: that form allows only a default import.
+const SERVER_INFO = { name: 'canvas-ade-mcp', version }
 
 /**
  * The C6 SPATIAL surface (spatial-awareness, 0.27.0) — ONE registration set shared by the
