@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import {
   TOOL_ADD_PLANNING_ELEMENTS,
+  TOOL_ARRANGE_MAIN_BOARD,
   TOOL_ASSIGN_PROMPT,
   TOOL_CLOSE_BOARD,
   TOOL_CONFIGURE_BOARD,
@@ -51,6 +52,8 @@ describe('capability tier split', () => {
       // C6 / D1 (0.27.0): the spatial tools, host-confirmed for this tier.
       expect(names).toContain(TOOL_TIDY_CANVAS)
       expect(names).toContain(TOOL_FOCUS_VIEWPORT)
+      // 0.28.0: the main + sidebar intent tool rides the same spatial surface.
+      expect(names).toContain(TOOL_ARRANGE_MAIN_BOARD)
       await client.close()
     })
 

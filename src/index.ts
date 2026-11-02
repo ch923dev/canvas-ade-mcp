@@ -54,6 +54,8 @@ export type {
   TidyOverflow,
   TidyScope,
   TidyCanvasInput,
+  // arrange_main_board (0.28.0)
+  ArrangeMainBoardInput,
   GroupEditOp,
   GroupBoardsRow,
   GroupBoardsInput,
@@ -143,12 +145,16 @@ export {
   TIDY_MODES,
   TILE_TEMPLATES,
   TIDY_OVERFLOW,
+  // arrange_main_board (0.28.0) — exported so the host can pin its sidebar-side vocabulary to MAIN_SIDES.
+  TOOL_ARRANGE_MAIN_BOARD,
+  MAIN_SIDES,
   MAX_GROUP_BATCH,
   MAX_GROUP_MEMBERS,
   GROUP_NAME_MAX,
   MAX_CONTEXTS,
   MAX_FOCUS_TARGET_ID
 } from './constants'
+export type { MainSide } from './constants'
 export { CONTEXTS_URI } from './resources/contexts'
 // Structured tool errors (0.26.0). The HOST throws `CanvasToolError(code, message)` from an
 // Orchestrator method to classify a failure; every failed tool result carries

@@ -4,6 +4,7 @@ import { MockOrchestrator } from '../../src/orchestrator/mock'
 import { ServerFactory } from '../../src/server/factory'
 import { resetWarnSkipped } from '../../src/server/tools/spatialShared'
 import {
+  TOOL_ARRANGE_MAIN_BOARD,
   TOOL_EDIT_GROUPS,
   TOOL_FOCUS_VIEWPORT,
   TOOL_GROUP_BOARDS,
@@ -16,12 +17,19 @@ import type { Tier } from '../../src/types'
  *
  *   surface                                   orchestrator  lead  connected  worker
  *   tidy_canvas / focus_viewport                   ✓          ✓       ✓         –
+ *   arrange_main_board (0.28.0)                    ✓          ✓       ✓         –
  *   group_boards / edit_groups                     ✓          ✓       ✓         –
  *   canvas://layout / canvas://contexts            ✓          ✓       ✓         –
  *
  * The split is structural: an absent surface never appears in that tier's list.
  */
-const SPATIAL_TOOLS = [TOOL_TIDY_CANVAS, TOOL_FOCUS_VIEWPORT, TOOL_GROUP_BOARDS, TOOL_EDIT_GROUPS]
+const SPATIAL_TOOLS = [
+  TOOL_TIDY_CANVAS,
+  TOOL_ARRANGE_MAIN_BOARD,
+  TOOL_FOCUS_VIEWPORT,
+  TOOL_GROUP_BOARDS,
+  TOOL_EDIT_GROUPS
+]
 const SPATIAL_RESOURCES = ['canvas://layout', 'canvas://contexts']
 const SPATIAL_TIERS: Tier[] = ['orchestrator', 'lead', 'connected']
 
@@ -75,8 +83,9 @@ describe('spatial surface — tools/list + resources/list membership per tier (D
 
 // --- warn-on-skip ---------------------------------------------------------------------------------
 
-/** A host that forwarded NONE of the three optional C6 methods. */
+/** A host that forwarded NONE of the optional spatial methods (the three C6 ones + 0.28.0's). */
 class UnwiredOrchestrator extends MockOrchestrator {
+  override arrangeMainBoard = undefined as unknown as MockOrchestrator['arrangeMainBoard']
   override describeContexts = undefined as unknown as MockOrchestrator['describeContexts']
   override groupBoards = undefined as unknown as MockOrchestrator['groupBoards']
   override editGroups = undefined as unknown as MockOrchestrator['editGroups']
@@ -92,6 +101,12 @@ class NoEditGroups extends MockOrchestrator {
 class NoDescribeContexts extends MockOrchestrator {
   override describeContexts = undefined as unknown as MockOrchestrator['describeContexts']
 }
+class NoArrangeMainBoard extends MockOrchestrator {
+  override arrangeMainBoard = undefined as unknown as MockOrchestrator['arrangeMainBoard']
+}
+
+/** Every optional spatial host method, in registration order. */
+const OPTIONAL_METHODS = ['arrangeMainBoard', 'groupBoards', 'editGroups', 'describeContexts']
 
 describe('spatial surface — optional-method registration + exactly-one warn per missing method', () => {
   let warn: MockInstance<typeof console.warn>
@@ -114,6 +129,13 @@ describe('spatial surface — optional-method registration + exactly-one warn pe
   const single: Array<[string, () => MockOrchestrator, string, string, 'tool' | 'resource']> = [
     ['groupBoards', () => new NoGroupBoards(), TOOL_GROUP_BOARDS, 'groupBoards', 'tool'],
     ['editGroups', () => new NoEditGroups(), TOOL_EDIT_GROUPS, 'editGroups', 'tool'],
+    [
+      'arrangeMainBoard',
+      () => new NoArrangeMainBoard(),
+      TOOL_ARRANGE_MAIN_BOARD,
+      'arrangeMainBoard',
+      'tool'
+    ],
     [
       'describeContexts',
       () => new NoDescribeContexts(),
@@ -138,14 +160,15 @@ describe('spatial surface — optional-method registration + exactly-one warn pe
     }
   }
 
-  it('all three missing ⇒ all three absent + exactly three warns, one per method', async () => {
+  it('all four missing ⇒ all four absent + exactly four warns, one per method', async () => {
     const { tools, resources } = await lists('connected', new UnwiredOrchestrator())
+    expect(tools).not.toContain(TOOL_ARRANGE_MAIN_BOARD)
     expect(tools).not.toContain(TOOL_GROUP_BOARDS)
     expect(tools).not.toContain(TOOL_EDIT_GROUPS)
     expect(resources).not.toContain('canvas://contexts')
-    expect(warn).toHaveBeenCalledTimes(3)
+    expect(warn).toHaveBeenCalledTimes(OPTIONAL_METHODS.length)
     const w = warnings()
-    for (const method of ['groupBoards', 'editGroups', 'describeContexts']) {
+    for (const method of OPTIONAL_METHODS) {
       expect(
         w.filter((m) => m.includes(`${method}()`)),
         method
@@ -169,15 +192,15 @@ describe('spatial surface — optional-method registration + exactly-one warn pe
     expect(warnings()[0]).toContain(TOOL_GROUP_BOARDS)
   })
 
-  it('an unwired host across many sessions: exactly three warns in total, one per surface', () => {
+  it('an unwired host across many sessions: exactly one warn per surface in total', () => {
     const factory = new ServerFactory(new UnwiredOrchestrator())
     for (let session = 0; session < 3; session++) {
       for (const tier of SPATIAL_TIERS) {
         factory.getServer({ tier, scopes: [], boardId: `${tier}-${session}` }).dispose()
       }
     }
-    expect(warn).toHaveBeenCalledTimes(3)
-    for (const method of ['groupBoards', 'editGroups', 'describeContexts']) {
+    expect(warn).toHaveBeenCalledTimes(OPTIONAL_METHODS.length)
+    for (const method of OPTIONAL_METHODS) {
       expect(
         warnings().filter((m) => m.includes(`${method}()`)),
         method

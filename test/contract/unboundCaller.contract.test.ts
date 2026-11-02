@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { connectInMemory } from '../helpers/inMemory'
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type {
+  ArrangeMainBoardInput,
   EditGroupsInput,
   GroupBoardsInput,
   SpawnGroupInput,
@@ -10,6 +11,7 @@ import type {
   VisualizePlanSpec
 } from '../../src/orchestrator/Orchestrator'
 import {
+  TOOL_ARRANGE_MAIN_BOARD,
   TOOL_EDIT_GROUPS,
   TOOL_FOCUS_VIEWPORT,
   TOOL_GROUP_BOARDS,
@@ -33,6 +35,10 @@ class SpyOrchestrator extends MockOrchestrator {
   override async tidyCanvas(input: TidyCanvasInput): Promise<unknown> {
     this.hostCalls.push({ method: 'tidyCanvas', input })
     return super.tidyCanvas(input)
+  }
+  override async arrangeMainBoard(input: ArrangeMainBoardInput): Promise<unknown> {
+    this.hostCalls.push({ method: 'arrangeMainBoard', input })
+    return super.arrangeMainBoard(input)
   }
   override async focusViewport(input: {
     boardId?: BoardId
@@ -74,6 +80,7 @@ class SpyOrchestrator extends MockOrchestrator {
 /** Every tool that binds `sourceBoardId`, a minimal valid call, and the tiers that register it. */
 const BINDING_TOOLS: Array<{ tool: string; args: Record<string, unknown>; tiers: Tier[] }> = [
   { tool: TOOL_TIDY_CANVAS, args: { mode: 'fit' }, tiers: ['lead', 'connected'] },
+  { tool: TOOL_ARRANGE_MAIN_BOARD, args: { boardId: 'b-main' }, tiers: ['lead', 'connected'] },
   { tool: TOOL_FOCUS_VIEWPORT, args: {}, tiers: ['lead', 'connected'] },
   {
     tool: TOOL_GROUP_BOARDS,

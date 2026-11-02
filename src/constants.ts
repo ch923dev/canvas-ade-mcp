@@ -316,6 +316,30 @@ export const TILE_TEMPLATES = ['cols-2', 'cols-3', 'cols-4', 'main-sidebar', 'gr
 export const TIDY_OVERFLOW = ['report', 'pages', 'shrink'] as const
 
 /**
+ * MAIN + SIDEBAR intent tool (0.28.0) — "make the browser the main one". ONE named board takes the big
+ * (main) slot and EVERY other in-scope board moves into a sidebar beside it, fitted to the user's
+ * screen. One tool per user-visible intent: `tidy_canvas`'s optional `primary` expressed the same
+ * thing, and agents misused it. The host maps it onto its tidy engine with `primary` = the board, so
+ * the gate and the undo rule are `tidy_canvas`'s: registered for the orchestrator, lead and connected
+ * tiers (D1); the ORCHESTRATOR tier stays UN-GATED host-side, a lead/connected call carries the
+ * caller's token-derived `sourceBoardId` and the HOST raises ONE approve/deny confirm before it
+ * applies; always ONE undo step; never creates or deletes a board. An OPTIONAL host method — a host
+ * that has not wired `arrangeMainBoard` does not get the tool.
+ */
+export const TOOL_ARRANGE_MAIN_BOARD = 'arrange_main_board'
+
+/**
+ * Where `arrange_main_board` puts the sidebar relative to the main board. `auto` (also what an OMITTED
+ * side means host-side — the package never defaults it): right of the main board on a wide screen,
+ * below it on a tall one. `right` / `left` / `bottom` / `top` pin the sidebar to that side. An off-enum
+ * value is rejected at the Zod layer; the host re-validates (defence in depth).
+ */
+export const MAIN_SIDES = ['auto', 'right', 'left', 'bottom', 'top'] as const
+
+/** An `arrange_main_board` sidebar side — the {@link MAIN_SIDES} vocabulary. */
+export type MainSide = (typeof MAIN_SIDES)[number]
+
+/**
  * Named Group tools (C6 / D2 / D6) — orchestrator, lead and connected tiers; worker never. Groups are
  * the user's own persisted structure, so EVERY call (every tier) is human BATCH-confirmed host-side:
  * one modal, one row per proposed group / op, and the approved rows apply as ONE undo step. Grouping

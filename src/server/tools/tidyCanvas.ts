@@ -77,8 +77,10 @@ const DESCRIPTION =
   '{ groupId } (one Named Group). overflow, when everything cannot be readable on one screen: ' +
   '"report" (default — arrange anyway and return readable:false), "pages" (screen-sized pages laid ' +
   'left to right), "shrink" (scale boards down until readable). fit: reframe the camera on the result ' +
-  '(default true). primary (a board id to force as the hero) and resize:false (keep the role order ' +
-  'but resize nothing) are roles-only: accepted with mode "roles" or no mode, rejected otherwise. ' +
+  '(default true). primary (a board id: that board becomes the MAIN board and every other in-scope ' +
+  'board its sidebar — prefer arrange_main_board for that intent) and resize:false (keep the role ' +
+  'order but resize nothing) are roles-only: accepted with mode "roles" or no mode, rejected ' +
+  'otherwise. ' +
   'RETURNS { moved, fitZoom, readable, pages?, units? } — moved = boards repositioned (0 ⇒ already ' +
   'tidy); readable = everything is legible at fitZoom; pages with overflow "pages"; units (roles) = ' +
   '[{ scene, heroIds, why }]. ' +

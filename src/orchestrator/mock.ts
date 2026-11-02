@@ -1,5 +1,6 @@
 import type { BoardId } from '../types'
 import type {
+  ArrangeMainBoardInput,
   BoardConfig,
   BoardOutput,
   BoardResult,
@@ -159,6 +160,15 @@ export class MockOrchestrator implements Orchestrator {
     // or the implicit default an omitted mode resolves to host-side).
     const roles = input.mode === undefined || input.mode === 'roles'
     return { moved: 0, fitZoom: 1, readable: true, ...(roles ? { units: [] } : {}) }
+  }
+
+  /**
+   * `arrange_main_board` (0.28.0) — OPTIONAL on the interface, implemented here for the same reason
+   * as the C6 methods below: so the tool appears in the mock's lists. The host maps it onto its roles
+   * tidy with `primary = boardId`, so the fixture is the roles-shaped `tidyCanvas` result.
+   */
+  async arrangeMainBoard(_input: ArrangeMainBoardInput): Promise<unknown> {
+    return { moved: 0, fitZoom: 1, readable: true, units: [] }
   }
 
   /**
