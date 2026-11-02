@@ -78,7 +78,8 @@ const DESCRIPTION =
   '"report" (default — arrange anyway and return readable:false), "pages" (screen-sized pages laid ' +
   'left to right), "shrink" (scale boards down until readable). fit: reframe the camera on the result ' +
   '(default true). primary (a board id: that board becomes the MAIN board and every other in-scope ' +
-  'board its sidebar — prefer arrange_main_board for that intent) and resize:false (keep the role ' +
+  'board its sidebar, every one resized to fit — prefer arrange_main_board for that intent) and ' +
+  'resize:false (keep the role ' +
   'order but resize nothing) are roles-only: accepted with mode "roles" or no mode, rejected ' +
   'otherwise. ' +
   'RETURNS { moved, fitZoom, readable, pages?, units? } — moved = boards repositioned (0 ⇒ already ' +

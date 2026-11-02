@@ -28,9 +28,9 @@ const DESCRIPTION =
   `side: ${MAIN_SIDES.map((s) => `"${s}"`).join(' | ')} (omitted ⇒ "auto"). ` +
   'scope: "all" (omitted ⇒ the whole canvas) | "visible" (only what is on screen) | { groupId } (one ' +
   'Named Group). fit: reframe the camera on the result (default true). ' +
-  'WHAT CHANGES — sidebar terminals may be resized to their slot; browser previews keep their device ' +
-  'aspect; planning, kanban and file boards keep their size. Nothing is created or deleted; the whole ' +
-  'arrangement is ONE undo step. From a lead or connected terminal the user approves it first; a ' +
+  'WHAT CHANGES — every board in the arrangement is resized: the main board stretches to fill the big ' +
+  'slot and the others share the sidebar evenly (planning, kanban and file boards included). Nothing ' +
+  'is created or deleted; the whole arrangement (positions and sizes) is ONE undo step. From a lead or connected terminal the user approves it first; a ' +
   'declined call changes nothing. ' +
   'RETURNS { moved, fitZoom, readable, units? } — moved = boards repositioned; readable = everything ' +
   'is legible at fitZoom.'
