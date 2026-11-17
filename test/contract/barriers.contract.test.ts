@@ -6,7 +6,8 @@ import {
   TOOL_WAIT_FOR_IDLE,
   TOOL_WAIT_FOR_ALL,
   DEFAULT_BARRIER_TIMEOUT_MS,
-  MAX_ACTIVE_BARRIERS
+  MAX_ACTIVE_BARRIERS,
+  MAX_GROUP_MEMBERS
 } from '../../src/constants'
 
 function readText(content: unknown): string {
@@ -146,6 +147,14 @@ describe('barrier tools (M5, orchestrator-tier)', () => {
     expect(b.isError).toBe(true)
     await client.close()
   })
+
+  it(`rejects more than ${MAX_GROUP_MEMBERS} boardIds at the schema`, async () => {
+    const client = await connectInMemory('orchestrator')
+    const ids = Array.from({ length: MAX_GROUP_MEMBERS + 1 }, (_, i) => `b${i}`)
+    const res = await client.callTool({ name: TOOL_WAIT_FOR_ALL, arguments: { boardIds: ids } })
+    expect(res.isError).toBe(true)
+    await client.close()
+  })
 })
 
 describe('resolveBarrierTimeout', () => {
@@ -173,6 +182,13 @@ describe('resolveBarrierTimeout', () => {
       process.env[KEY] = bad
       expect(resolveBarrierTimeout()).toBe(DEFAULT_BARRIER_TIMEOUT_MS)
     }
+  })
+
+  it('treats a delay past the 2^31-1 ms timer limit as no backstop (Node would fire it in 1 ms)', () => {
+    expect(resolveBarrierTimeout(2 ** 31 - 1)).toBe(2 ** 31 - 1)
+    expect(resolveBarrierTimeout(2 ** 31)).toBe(Infinity)
+    process.env[KEY] = '3000000000'
+    expect(resolveBarrierTimeout()).toBe(Infinity)
   })
 
   it('uses the default when neither arg nor env is set', () => {

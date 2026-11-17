@@ -3,6 +3,7 @@ import { connectInMemory } from '../helpers/inMemory'
 import { MockOrchestrator } from '../../src/orchestrator/mock'
 import type { BoardId } from '../../src/types'
 import type { BoardConfig } from '../../src/orchestrator/Orchestrator'
+import { CONFIGURE_BOARD_MAX_PATH, SPAWN_GROUP_MAX_LAUNCH } from '../../src/constants'
 
 // configure_board is a lifecycle WRITE tool (T3.3) — orchestrator-tier only. It
 // changes a board's durable per-type config (shell / launchCommand / cwd).
@@ -49,6 +50,24 @@ describe('configure_board tool (T3.3, lifecycle write)', () => {
     const client = await connectInMemory('orchestrator', orch)
     const res = await client.callTool({ name: TOOL, arguments: { id: '', shell: 'pwsh' } })
     expect(res.isError).toBe(true)
+    expect(orch.configured).toEqual([])
+    await client.close()
+  })
+
+  it('rejects an over-long shell / launchCommand / cwd WITHOUT configuring anything', async () => {
+    const orch = new SpyOrchestrator()
+    const client = await connectInMemory('orchestrator', orch)
+    for (const [key, cap] of [
+      ['shell', CONFIGURE_BOARD_MAX_PATH],
+      ['launchCommand', SPAWN_GROUP_MAX_LAUNCH],
+      ['cwd', CONFIGURE_BOARD_MAX_PATH]
+    ] as const) {
+      const res = await client.callTool({
+        name: TOOL,
+        arguments: { id: 'board-3', [key]: 'x'.repeat(cap + 1) }
+      })
+      expect(res.isError).toBe(true)
+    }
     expect(orch.configured).toEqual([])
     await client.close()
   })

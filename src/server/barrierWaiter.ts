@@ -1,6 +1,9 @@
 import type { BoardResult, BoardStatusChange, Orchestrator } from '../orchestrator/Orchestrator'
 
-/** One target's settled outcome. `status` is a bucket, `'gone'`, or `'timed-out'`. */
+/**
+ * One target's settled outcome. `status` is a bucket, `'gone'`, `'timed-out'`, or `'error'`
+ * (the host state read failed, so the wait could not be trusted).
+ */
 export interface BarrierBoardResult {
   id: string
   status: string
@@ -52,8 +55,12 @@ export function waitForBoards(opts: {
     if (done || !pending.has(id)) return
     let entry: BarrierBoardResult = { id, status }
     if (status === 'idle') {
-      const r = await orchestrator.boardResult(id)
-      if (r.present) entry = { id, status, result: r }
+      try {
+        const r = await orchestrator.boardResult(id)
+        if (r.present) entry = { id, status, result: r }
+      } catch {
+        // The board IS idle; an unreadable result must not leave it unsettled. Report it bare.
+      }
     }
     if (done || !pending.has(id)) return // a concurrent finish/duplicate edge won the race
     settled.set(id, entry)
@@ -77,7 +84,7 @@ export function waitForBoards(opts: {
       if (st === undefined) await recordSettle(id, 'gone')
       else if (isSettled(st)) await recordSettle(id, st)
     }
-  })()
+  })().catch(() => finish('error')) // unknown state: an already-settled target would never edge
 
   if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
     timer = setTimeout(() => finish('timed-out'), timeoutMs)
