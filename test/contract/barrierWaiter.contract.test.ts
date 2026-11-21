@@ -62,6 +62,30 @@ describe('waitForBoards', () => {
     ])
   })
 
+  it('a rejecting listBoards settles pending targets as `error` (no hang, no unhandled rejection)', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.listBoards = () => Promise.reject(new Error('host down'))
+    const { promise } = waitForBoards({
+      orchestrator: orch,
+      targets: ['t1'],
+      timeoutMs: NO_TIMEOUT
+    })
+    expect(await promise).toEqual([{ id: 't1', status: 'error' }])
+  })
+
+  it('a rejecting boardResult still settles an idle target (bare, without a result)', async () => {
+    const orch = new EmittingOrchestrator()
+    orch.boards = [{ id: 't1', type: 'terminal', title: 'T', status: 'running' }]
+    orch.boardResult = () => Promise.reject(new Error('read failed'))
+    const { promise } = waitForBoards({
+      orchestrator: orch,
+      targets: ['t1'],
+      timeoutMs: NO_TIMEOUT
+    })
+    queueMicrotask(() => orch.emit({ id: 't1', status: 'idle' }))
+    expect(await promise).toEqual([{ id: 't1', status: 'idle' }])
+  })
+
   it('resolves `gone` for an id absent at call time', async () => {
     const orch = new EmittingOrchestrator()
     const { promise } = waitForBoards({

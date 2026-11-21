@@ -422,6 +422,12 @@ export const SPAWN_BOARD_MAX_PROMPT = 400
 export const SPAWN_BOARD_MAX_URL = 2048
 
 /**
+ * Max chars for `configure_board` `shell` / `cwd` (a path, not an exec line) — wire-level guard
+ * only; the host validates authoritatively. `launchCommand` pays {@link SPAWN_GROUP_MAX_LAUNCH}.
+ */
+export const CONFIGURE_BOARD_MAX_PATH = 1024
+
+/**
  * Hard cap on the chars returned by ONE `canvas://board/{id}/output` page (T1.4 🔒).
  * The MCP output budget is ~25k; we never emit a larger page even if the host
  * over-returns. MUST match the app accessor's page size (`MAX_OUTPUT_PAGE` in

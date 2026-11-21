@@ -4,6 +4,7 @@ import type { Orchestrator } from '../../orchestrator/Orchestrator'
 import {
   DEFAULT_BARRIER_TIMEOUT_MS,
   MAX_ACTIVE_BARRIERS,
+  MAX_GROUP_MEMBERS,
   TOOL_WAIT_FOR_ALL,
   TOOL_WAIT_FOR_IDLE
 } from '../../constants'
@@ -16,13 +17,10 @@ import { toolErrorResult, type ToolErrorResult } from '../toolErrors'
  * 30-min default. (env validation mirrors BUG-023: reject non-positive / non-finite.)
  */
 export function resolveBarrierTimeout(arg?: number): number {
-  if (arg !== undefined) return arg
-  const env = process.env.CANVAS_ADE_BARRIER_TIMEOUT_MS
-  if (env !== undefined) {
-    const n = Number(env)
-    if (Number.isFinite(n) && n > 0) return n
-  }
-  return DEFAULT_BARRIER_TIMEOUT_MS
+  const env = Number(process.env.CANVAS_ADE_BARRIER_TIMEOUT_MS)
+  const ms = arg ?? (Number.isFinite(env) && env > 0 ? env : DEFAULT_BARRIER_TIMEOUT_MS)
+  // Node clamps a setTimeout delay > 2^31-1 ms to 1 ms (an instant timeout): past that, no backstop.
+  return ms > 2 ** 31 - 1 ? Infinity : ms
 }
 
 /**
@@ -68,7 +66,8 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
     {
       description:
         'Block until a target board leaves the running state, then report how it settled ' +
-        '(idle/awaiting-review/blocked/failed/static/gone, or timed-out). Returns the board ' +
+        '(idle/awaiting-review/blocked/failed/static/gone, timed-out, or error when the host ' +
+        'state read failed — re-read canvas://boards). Returns the board ' +
         "id + status (+ the board's last write_result when idle). boardId is required; " +
         'optional timeoutMs (omit for the default backstop; <=0 to wait indefinitely).',
       inputSchema: z.object({
@@ -90,10 +89,10 @@ export function registerBarrierTools(server: McpServer, orchestrator: Orchestrat
       description:
         'Block until EVERY target board has left the running state, then report each one ' +
         '(same statuses as wait_for_idle) plus allIdle (true when every target settled to ' +
-        'idle). boardIds is a non-empty array; optional timeoutMs (omit for the default ' +
-        'backstop; <=0 to wait indefinitely).',
+        `idle). boardIds is a non-empty array (max ${MAX_GROUP_MEMBERS}); optional timeoutMs ` +
+        '(omit for the default backstop; <=0 to wait indefinitely).',
       inputSchema: z.object({
-        boardIds: z.array(z.string().min(1)).min(1),
+        boardIds: z.array(z.string().min(1)).min(1).max(MAX_GROUP_MEMBERS),
         timeoutMs: z.number().optional()
       })
     },
